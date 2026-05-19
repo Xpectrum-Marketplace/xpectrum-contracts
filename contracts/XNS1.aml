@@ -1,0 +1,248 @@
+// XNS-1 >> Xpectrum NFT Standard rev 1
+// get_token_info >> id | owner | creator | name | royalty_bps | minted_epoch | uri
+// get_contract_info >> name | symbol | total_supply | owner
+
+contract XNS1 {
+
+  struct Token {
+    owner: address
+    creator: address
+    metadata_uri: string
+    royalty_bps: int
+    minted_epoch: int
+  }
+
+  event Minted(token_id: int, owner: address, creator: address)
+  event Transferred(token_id: int, from: address, to: address)
+  event Approved(token_id: int, approved: address)
+  event ApprovalRevoked(token_id: int)
+  event OperatorSet(owner: address, operator: address, approved: int)
+  event OwnershipTransferred(old_owner: address, new_owner: address)
+
+  const MAX_ROYALTY_BPS: int = 1000
+
+  state {
+    owner: address
+    name: string
+    symbol: string
+    total_supply: int
+    tokens: map[int]Token
+    balances: map[address]int
+    approvals: map[int]address
+    operator_approvals: map[address]map[address]int
+  }
+
+  constructor(token_name: string, token_symbol: string) {
+    self.owner = caller
+    self.name = token_name
+    self.symbol = token_symbol
+    self.total_supply = 0
+  }
+
+  private fn only_owner() {
+    require(caller == self.owner, "xns1: not authorized")
+  }
+
+  private fn token_exists(token_id: int) {
+    require(token_id >= 0 && token_id < self.total_supply, "xns1: token not found")
+  }
+
+  fn mint(to: address, creator: address, metadata_uri: string, royalty_bps: int): int {
+    only_owner()
+    require(is_address(to) && to != 0, "xns1: invalid recipient")
+    require(is_address(creator) && creator != 0, "xns1: invalid creator")
+    require(royalty_bps >= 0, "xns1: negative royalty")
+    require(royalty_bps <= MAX_ROYALTY_BPS, "xns1: royalty exceeds 10%")
+
+    let id = self.total_supply
+    self.tokens[id].owner = to
+    self.tokens[id].creator = creator
+    self.tokens[id].metadata_uri = metadata_uri
+    self.tokens[id].royalty_bps = royalty_bps
+    self.tokens[id].minted_epoch = epoch
+    self.balances[to] += 1
+    self.total_supply += 1
+
+    emit Minted(id, to, creator)
+    emit Transferred(id, 0, to)
+    return id
+  }
+
+  fn transfer(to: address, token_id: int): bool {
+    token_exists(token_id)
+    require(is_address(to) && to != 0, "xns1: invalid recipient")
+
+    let current_owner = self.tokens[token_id].owner
+    require(caller == current_owner, "xns1: not owner")
+    require(to != current_owner, "xns1: already owner")
+
+    self.tokens[token_id].owner = to
+    self.balances[current_owner] -= 1
+    self.balances[to] += 1
+    self.approvals[token_id] = 0
+
+    emit Transferred(token_id, current_owner, to)
+    return true
+  }
+
+  fn transfer_from(from: address, to: address, token_id: int): bool {
+    token_exists(token_id)
+    require(is_address(from) && from != 0, "xns1: invalid from address")
+    require(is_address(to) && to != 0, "xns1: invalid recipient")
+
+    let current_owner = self.tokens[token_id].owner
+    require(from == current_owner, "xns1: from is not owner")
+    require(to != current_owner, "xns1: already owner")
+
+    let approved = self.approvals[token_id]
+    let is_operator = self.operator_approvals[from][caller]
+    require(
+      caller == current_owner || caller == approved || is_operator == 1,
+      "xns1: not authorized"
+    )
+
+    self.tokens[token_id].owner = to
+    self.balances[from] -= 1
+    self.balances[to] += 1
+    self.approvals[token_id] = 0
+
+    emit Transferred(token_id, from, to)
+    return true
+  }
+
+  fn approve(approved: address, token_id: int): bool {
+    token_exists(token_id)
+    require(is_address(approved) && approved != 0, "xns1: use revoke_approval to clear")
+
+    let current_owner = self.tokens[token_id].owner
+    let is_operator = self.operator_approvals[current_owner][caller]
+    require(caller == current_owner || is_operator == 1, "xns1: not authorized")
+
+    self.approvals[token_id] = approved
+    emit Approved(token_id, approved)
+    return true
+  }
+
+  fn revoke_approval(token_id: int): bool {
+    token_exists(token_id)
+
+    let current_owner = self.tokens[token_id].owner
+    let is_operator = self.operator_approvals[current_owner][caller]
+    require(caller == current_owner || is_operator == 1, "xns1: not authorized")
+
+    self.approvals[token_id] = 0
+    emit ApprovalRevoked(token_id)
+    return true
+  }
+
+  fn set_operator(operator: address, approved: int): bool {
+    require(operator != caller, "xns1: cannot self-operate")
+    require(is_address(operator) && operator != 0, "xns1: invalid operator")
+    require(approved == 0 || approved == 1, "xns1: approved must be 0 or 1")
+
+    self.operator_approvals[caller][operator] = approved
+    emit OperatorSet(caller, operator, approved)
+    return true
+  }
+
+  fn transfer_ownership(new_owner: address): bool {
+    only_owner()
+    require(is_address(new_owner) && new_owner != 0, "xns1: invalid address")
+
+    let old = self.owner
+    self.owner = new_owner
+    emit OwnershipTransferred(old, new_owner)
+    return true
+  }
+
+  view fn owner_of(token_id: int): address {
+    token_exists(token_id)
+    return self.tokens[token_id].owner
+  }
+
+  view fn creator_of(token_id: int): address {
+    token_exists(token_id)
+    return self.tokens[token_id].creator
+  }
+
+  view fn royalty_of(token_id: int): int {
+    token_exists(token_id)
+    return self.tokens[token_id].royalty_bps
+  }
+
+  view fn token_uri(token_id: int): string {
+    token_exists(token_id)
+    return self.tokens[token_id].metadata_uri
+  }
+
+  view fn collection_of(token_id: int): string {
+    return self.name
+  }
+
+  view fn balance_of(addr: address): int {
+    return self.balances[addr]
+  }
+
+  view fn get_approved(token_id: int): address {
+    token_exists(token_id)
+    return self.approvals[token_id]
+  }
+
+  view fn get_total_supply(): int {
+    return self.total_supply
+  }
+
+  view fn total_supply(): int {
+    return self.total_supply
+  }
+
+  view fn collection_name(): string {
+    return self.name
+  }
+
+  view fn symbol(): string {
+    return self.symbol
+  }
+
+  view fn is_approved_or_owner(token_id: int, addr: address): int {
+    require(addr != 0, "xns1: cannot query zero address")
+    token_exists(token_id)
+
+    let current_owner = self.tokens[token_id].owner
+    if addr == current_owner { return 1 }
+    if self.approvals[token_id] == addr { return 1 }
+    if self.operator_approvals[current_owner][addr] == 1 { return 1 }
+    return 0
+  }
+
+  view fn get_token_info(token_id: int): string {
+    token_exists(token_id)
+
+    let out = to_string(token_id)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.tokens[token_id].owner))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.tokens[token_id].creator))
+    out = concat(out, "|")
+    out = concat(out, self.name)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.tokens[token_id].royalty_bps))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.tokens[token_id].minted_epoch))
+    out = concat(out, "|")
+    out = concat(out, self.tokens[token_id].metadata_uri)
+    return out
+  }
+
+  view fn get_contract_info(): string {
+    let out = self.name
+    out = concat(out, "|")
+    out = concat(out, self.symbol)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.total_supply))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.owner))
+    return out
+  }
+
+}
