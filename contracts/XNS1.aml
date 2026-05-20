@@ -1,5 +1,6 @@
 // XNS-1 >> Xpectrum NFT Standard rev 1
 // get_token_info >> id | owner | creator | name | royalty_bps | minted_epoch | uri
+// get_token_circle_info >> token_id | resource_id | uri | access | active | version
 // get_contract_info >> name | symbol | total_supply | owner
 
 contract XNS1 {
@@ -18,6 +19,8 @@ contract XNS1 {
   event ApprovalRevoked(token_id: int)
   event OperatorSet(owner: address, operator: address, approved: int)
   event OwnershipTransferred(old_owner: address, new_owner: address)
+  event CircleResourceSet(token_id: int, resource_id: int, uri: string, access: string)
+  event CircleResourceCleared(token_id: int, resource_id: int)
 
   const MAX_ROYALTY_BPS: int = 1000
 
@@ -30,6 +33,10 @@ contract XNS1 {
     balances: map[address]int
     approvals: map[int]address
     operator_approvals: map[address]map[address]int
+    circle_resource_count: map[int]int
+    circle_resource_uri: map[int]map[int]string
+    circle_resource_access: map[int]map[int]string
+    circle_resource_active: map[int]map[int]int
   }
 
   constructor(token_name: string, token_symbol: string) {
@@ -155,6 +162,43 @@ contract XNS1 {
     return true
   }
 
+  fn add_circle_resource(token_id: int, uri: string, access: string): int {
+    only_owner()
+    token_exists(token_id)
+
+    let resource_id = self.circle_resource_count[token_id]
+    self.circle_resource_uri[token_id][resource_id] = uri
+    self.circle_resource_access[token_id][resource_id] = access
+    self.circle_resource_active[token_id][resource_id] = 1
+    self.circle_resource_count[token_id] += 1
+    emit CircleResourceSet(token_id, resource_id, uri, access)
+    return resource_id
+  }
+
+  fn set_circle_resource(token_id: int, resource_id: int, uri: string, access: string): bool {
+    only_owner()
+    token_exists(token_id)
+    require(resource_id >= 0 && resource_id < self.circle_resource_count[token_id], "xns1: circle resource not found")
+
+    self.circle_resource_uri[token_id][resource_id] = uri
+    self.circle_resource_access[token_id][resource_id] = access
+    self.circle_resource_active[token_id][resource_id] = 1
+    emit CircleResourceSet(token_id, resource_id, uri, access)
+    return true
+  }
+
+  fn clear_circle_resource(token_id: int, resource_id: int): bool {
+    only_owner()
+    token_exists(token_id)
+    require(resource_id >= 0 && resource_id < self.circle_resource_count[token_id], "xns1: circle resource not found")
+
+    self.circle_resource_uri[token_id][resource_id] = ""
+    self.circle_resource_access[token_id][resource_id] = ""
+    self.circle_resource_active[token_id][resource_id] = 0
+    emit CircleResourceCleared(token_id, resource_id)
+    return true
+  }
+
   view fn owner_of(token_id: int): address {
     token_exists(token_id)
     return self.tokens[token_id].owner
@@ -173,6 +217,20 @@ contract XNS1 {
   view fn token_uri(token_id: int): string {
     token_exists(token_id)
     return self.tokens[token_id].metadata_uri
+  }
+
+  view fn token_circle_count(token_id: int): int {
+    token_exists(token_id)
+    return self.circle_resource_count[token_id]
+  }
+
+  view fn token_circle_uri(token_id: int, resource_id: int): string {
+    token_exists(token_id)
+    require(resource_id >= 0 && resource_id < self.circle_resource_count[token_id], "xns1: circle resource not found")
+    if self.circle_resource_active[token_id][resource_id] == 0 {
+      return ""
+    }
+    return self.circle_resource_uri[token_id][resource_id]
   }
 
   view fn collection_of(token_id: int): string {
@@ -231,6 +289,23 @@ contract XNS1 {
     out = concat(out, to_string(self.tokens[token_id].minted_epoch))
     out = concat(out, "|")
     out = concat(out, self.tokens[token_id].metadata_uri)
+    return out
+  }
+
+  view fn get_token_circle_info(token_id: int, resource_id: int): string {
+    token_exists(token_id)
+    require(resource_id >= 0 && resource_id < self.circle_resource_count[token_id], "xns1: circle resource not found")
+
+    let out = to_string(token_id)
+    out = concat(out, "|")
+    out = concat(out, to_string(resource_id))
+    out = concat(out, "|")
+    out = concat(out, self.circle_resource_uri[token_id][resource_id])
+    out = concat(out, "|")
+    out = concat(out, self.circle_resource_access[token_id][resource_id])
+    out = concat(out, "|")
+    out = concat(out, to_string(self.circle_resource_active[token_id][resource_id]))
+    out = concat(out, "|1")
     return out
   }
 

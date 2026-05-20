@@ -6,6 +6,8 @@
 //                      pub_price | pub_start | pub_end | pub_cap | pub_minted | pub_wallet_cap |
 //                      injection_cap | genesis_minted_count
 // get_token_info    >> id | owner | creator | name | royalty_bps | minted_epoch | uri
+// get_token_circle_info >> token_id | resource_id | uri | access | active | version
+// get_collection_circle_info >> resource_id | base_uri | suffix | unrevealed_uri | access | active | version
 // get_contract_info >> name | symbol | total_minted | max_supply | royalty_bps | owner | revealed
 // get_genesis_status >> genesis_minted_count | injection_cap | genesis_contract | injection_swept
 
@@ -26,6 +28,8 @@ contract Xcollection {
   event OperatorSet(owner: address, operator: address, approved: int)
   event Revealed(base_uri: string)
   event BaseUriUpdated(base_uri: string)
+  event CollectionCircleResourceSet(resource_id: int, base_uri: string, suffix: string, unrevealed_uri: string, access: string)
+  event CollectionCircleResourceCleared(resource_id: int)
   event PhaseOverrideSet(phase: int)
   event PhaseOverrideCleared()
   event InjectionSwept(slots_swept: int, new_public_cap: int)
@@ -50,6 +54,12 @@ contract Xcollection {
     base_uri: string
     unrevealed_uri: string
     revealed: int
+    circle_resource_count: int
+    circle_base_uri: map[int]string
+    circle_uri_suffix: map[int]string
+    circle_unrevealed_uri: map[int]string
+    circle_resource_access: map[int]string
+    circle_resource_active: map[int]int
     royalty_bps: int
     royalty_receiver: address
     max_supply: int
@@ -100,6 +110,7 @@ contract Xcollection {
     self.owner = caller
     self.initialized = 0
     self.revealed = 0
+    self.circle_resource_count = 0
     self.total_minted = 0
     self.paused = 0
     self.phase_override_active = 0
@@ -477,6 +488,49 @@ contract Xcollection {
     return true
   }
 
+  fn add_collection_circle_resource(base_uri: string, suffix: string, unrevealed_uri: string, access: string): int {
+    only_initialized()
+    only_owner_or_admin()
+
+    let resource_id = self.circle_resource_count
+    self.circle_base_uri[resource_id] = base_uri
+    self.circle_uri_suffix[resource_id] = suffix
+    self.circle_unrevealed_uri[resource_id] = unrevealed_uri
+    self.circle_resource_access[resource_id] = access
+    self.circle_resource_active[resource_id] = 1
+    self.circle_resource_count += 1
+    emit CollectionCircleResourceSet(resource_id, base_uri, suffix, unrevealed_uri, access)
+    return resource_id
+  }
+
+  fn set_collection_circle_resource(resource_id: int, base_uri: string, suffix: string, unrevealed_uri: string, access: string): bool {
+    only_initialized()
+    only_owner_or_admin()
+    require(resource_id >= 0 && resource_id < self.circle_resource_count, "xcollection: circle resource not found")
+
+    self.circle_base_uri[resource_id] = base_uri
+    self.circle_uri_suffix[resource_id] = suffix
+    self.circle_unrevealed_uri[resource_id] = unrevealed_uri
+    self.circle_resource_access[resource_id] = access
+    self.circle_resource_active[resource_id] = 1
+    emit CollectionCircleResourceSet(resource_id, base_uri, suffix, unrevealed_uri, access)
+    return true
+  }
+
+  fn clear_collection_circle_resource(resource_id: int): bool {
+    only_initialized()
+    only_owner_or_admin()
+    require(resource_id >= 0 && resource_id < self.circle_resource_count, "xcollection: circle resource not found")
+
+    self.circle_base_uri[resource_id] = ""
+    self.circle_uri_suffix[resource_id] = ""
+    self.circle_unrevealed_uri[resource_id] = ""
+    self.circle_resource_access[resource_id] = ""
+    self.circle_resource_active[resource_id] = 0
+    emit CollectionCircleResourceCleared(resource_id)
+    return true
+  }
+
   fn update_phase_prices(gtd: int, fcfs: int, pub_price: int): bool {
     only_initialized()
     only_owner_or_admin()
@@ -660,6 +714,33 @@ contract Xcollection {
     return self.unrevealed_uri
   }
 
+  view fn collection_circle_count(): int {
+    return self.circle_resource_count
+  }
+
+  view fn token_circle_count(token_id: int): int {
+    require(token_id >= 0 && token_id < self.total_minted, "xcollection: token not found")
+    return self.circle_resource_count
+  }
+
+  view fn token_circle_uri(token_id: int, resource_id: int): string {
+    require(token_id >= 0 && token_id < self.total_minted, "xcollection: token not found")
+    require(resource_id >= 0 && resource_id < self.circle_resource_count, "xcollection: circle resource not found")
+    if self.circle_resource_active[resource_id] == 0 {
+      return ""
+    }
+    if self.revealed == 0 && self.circle_unrevealed_uri[resource_id] != "" {
+      return self.circle_unrevealed_uri[resource_id]
+    }
+    if self.circle_base_uri[resource_id] == "" {
+      return ""
+    }
+    let uri = self.circle_base_uri[resource_id]
+    uri = concat(uri, to_string(token_id))
+    uri = concat(uri, self.circle_uri_suffix[resource_id])
+    return uri
+  }
+
   view fn collection_of(token_id: int): string {
     return self.name
   }
@@ -741,6 +822,41 @@ contract Xcollection {
     out = concat(out, to_string(self.tokens[token_id].minted_epoch))
     out = concat(out, "|")
     out = concat(out, uri)
+    return out
+  }
+
+  view fn get_token_circle_info(token_id: int, resource_id: int): string {
+    require(token_id >= 0 && token_id < self.total_minted, "xcollection: token not found")
+    require(resource_id >= 0 && resource_id < self.circle_resource_count, "xcollection: circle resource not found")
+
+    let out = to_string(token_id)
+    out = concat(out, "|")
+    out = concat(out, to_string(resource_id))
+    out = concat(out, "|")
+    out = concat(out, token_circle_uri(token_id, resource_id))
+    out = concat(out, "|")
+    out = concat(out, self.circle_resource_access[resource_id])
+    out = concat(out, "|")
+    out = concat(out, to_string(self.circle_resource_active[resource_id]))
+    out = concat(out, "|1")
+    return out
+  }
+
+  view fn get_collection_circle_info(resource_id: int): string {
+    require(resource_id >= 0 && resource_id < self.circle_resource_count, "xcollection: circle resource not found")
+
+    let out = to_string(resource_id)
+    out = concat(out, "|")
+    out = concat(out, self.circle_base_uri[resource_id])
+    out = concat(out, "|")
+    out = concat(out, self.circle_uri_suffix[resource_id])
+    out = concat(out, "|")
+    out = concat(out, self.circle_unrevealed_uri[resource_id])
+    out = concat(out, "|")
+    out = concat(out, self.circle_resource_access[resource_id])
+    out = concat(out, "|")
+    out = concat(out, to_string(self.circle_resource_active[resource_id]))
+    out = concat(out, "|1")
     return out
   }
 
