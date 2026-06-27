@@ -1,0 +1,1112 @@
+// XpectrumGenesis >> Beta Genesis collection (root genesis, 3-phase mint)
+// holding a Beta Genesis token grants GTD access on future Xcollection drops.
+//
+// formally verified (aml_safety_report_v1, errors: 0, warnings: 4)
+// bytecode_hash:     b8238ac3ab9df05d1889bff0e8d008709009da76496ee2d4f2772e53aa64db7a
+// verification_hash: 0a5bfb14a58b31db0f79d5638aa1f6c94a6f228474622454a39916eaf150d557
+
+contract XpectrumGenesis {
+
+  struct TokenInfo {
+    owner: address
+    minted_epoch: u128
+  }
+
+  event Initialized(owner: address, name: string, max_supply: u128)
+  event Minted(minter: address, token_id: u128, phase: u128, price: u128)
+  event Airdropped(recipient: address, token_id: u128)
+  event Transferred(token_id: u128, from: address, to: address)
+  event Approved(token_id: u128, approved: address)
+  event ApprovalRevoked(token_id: u128)
+  event OperatorSet(owner: address, operator: address, approved: u128)
+  event Revealed(base_uri: string)
+  event BaseUriUpdated(base_uri: string)
+  event CollectionCircleResourceSet(resource_id: u128, base_uri: string, suffix: string, unrevealed_uri: string, access: string)
+  event CollectionCircleResourceCleared(resource_id: u128)
+  event PhaseOverrideSet(phase: u128)
+  event PhaseOverrideCleared()
+  event ProceedsClaimed(recipient: address, amount: u128)
+  event XpectrumWalletUpdated(new_wallet: address)
+  event OwnershipTransferred(old_owner: address, new_owner: address)
+  event UnrevealedUriSet(uri: string)
+  event Paused()
+  event Unpaused()
+  event PhasePriceUpdated(gtd: u128, fcfs: u128, pub: u128)
+  event PhaseCapUpdated(gtd_cap: u128, fcfs_cap: u128, pub_cap: u128)
+  event PhaseWalletCapUpdated(gtd_wallet: u128, fcfs_wallet: u128, pub_wallet: u128)
+  event PhaseEpochsUpdated(gtd_start: u128, gtd_end: u128, fcfs_start: u128, fcfs_end: u128, pub_start: u128, pub_end: u128)
+  event TrustedFactoryUpdated(new_factory: address)
+
+  const PLATFORM_FEE_BPS: u128 = 250
+  const MAX_ROYALTY_BPS: u128  = 1000
+  const MIN_PHASE_EPOCHS: u128 = 360
+  const MAX_GTD_EPOCHS: u128   = 259200
+  const MAX_FCFS_EPOCHS: u128  = 259200
+
+  state {
+    owner: address
+    admin: address
+    xpectrum_wallet: address
+    name: string
+    symbol: string
+    base_uri: string
+    unrevealed_uri: string
+    revealed: u128
+    circle_resource_count: u128
+    circle_base_uri: map[u128]string
+    circle_uri_suffix: map[u128]string
+    circle_unrevealed_uri: map[u128]string
+    circle_resource_access: map[u128]string
+    circle_resource_active: map[u128]u128
+    royalty_bps: u128
+    royalty_receiver: address
+    max_supply: u128
+    total_minted: u128
+    max_per_wallet: u128
+    minted_per_wallet: map[address]u128
+    initialized: u128
+    paused: u128
+    phase_override_active: u128
+    phase_override_value: u128
+    gtd_price: u128
+    gtd_start_epoch: u128
+    gtd_end_epoch: u128
+    gtd_cap: u128
+    gtd_minted: u128
+    gtd_wallet_cap: u128
+    phase_minted_by: map[u128]map[address]u128
+    fcfs_price: u128
+    fcfs_start_epoch: u128
+    fcfs_end_epoch: u128
+    fcfs_cap: u128
+    fcfs_minted: u128
+    fcfs_wallet_cap: u128
+    public_price: u128
+    public_start_epoch: u128
+    public_end_epoch: u128
+    public_cap: u128
+    public_minted: u128
+    public_wallet_cap: u128
+    xlist_addr: address
+    airdropped_count: u128
+    balances: map[address]u128
+    tokens: map[u128]TokenInfo
+    approvals: map[u128]address
+    operator_approvals: map[address]map[address]u128
+    reserve: u128
+    pending_proceeds: map[address]u128
+    owner_token_index: map[address]map[u128]u128
+    owner_token_position: map[address]map[u128]u128
+    owner_token_count: map[address]u128
+    event_log: map[u128]string
+    event_log_count: u128
+    trusted_factory: address
+
+    // holder enumeration index (swap-and-pop)
+    holder_list:  map[u128]address
+    holder_pos:   map[address]u128
+    holder_count: u128
+  }
+
+  constructor() {
+    self.owner = caller
+    self.initialized = 0
+    self.revealed = 0
+    self.circle_resource_count = 0
+    self.total_minted = 0
+    self.paused = 0
+    self.phase_override_active = 0
+    self.phase_override_value = 3
+    self.reserve = 0
+    self.airdropped_count = 0
+    self.event_log_count = 0
+    self.holder_count    = 0
+  }
+
+  private fn only_initialized() {
+    require(self.initialized == 1, "genesis: not initialized")
+  }
+
+  private fn only_owner_or_admin() {
+    require(
+      caller == self.owner || caller == self.admin || caller == self.trusted_factory,
+      "genesis: not authorized"
+    )
+  }
+
+  private fn _bal_add(a: address, n: u128) {
+    let nb: u128 = self.balances[a] + n
+    require(nb >= self.balances[a], "genesis: balance overflow")
+    self.balances[a] = nb
+  }
+
+  private fn _bal_sub(a: address, n: u128) {
+    require(self.balances[a] >= n, "genesis: balance underflow")
+    self.balances[a] -= n
+  }
+
+  private fn _credit(a: address, n: u128) {
+    let np: u128 = self.pending_proceeds[a] + n
+    require(np >= self.pending_proceeds[a], "genesis: proceeds overflow")
+    self.pending_proceeds[a] = np
+  }
+
+  private fn _reserve_add(n: u128) {
+    let nr: u128 = self.reserve + n
+    require(nr >= self.reserve, "genesis: reserve overflow")
+    self.reserve = nr
+  }
+
+  private fn _reserve_sub(n: u128) {
+    require(self.reserve >= n, "genesis: reserve underflow")
+    self.reserve -= n
+  }
+
+  private fn _index_add(to: address, token_id: u128) {
+    let idx = self.owner_token_count[to]
+    self.owner_token_index[to][idx] = token_id
+    self.owner_token_position[to][token_id] = idx
+    self.owner_token_count[to] += 1
+  }
+
+  private fn _index_remove(from: address, token_id: u128) {
+    let pos = self.owner_token_position[from][token_id]
+    let last_idx = self.owner_token_count[from] - 1
+    if pos != last_idx {
+      let last_token = self.owner_token_index[from][last_idx]
+      self.owner_token_index[from][pos] = last_token
+      self.owner_token_position[from][last_token] = pos
+    }
+    self.owner_token_index[from][last_idx] = 0
+    self.owner_token_position[from][token_id] = 0
+    self.owner_token_count[from] = last_idx
+  }
+
+  private fn _holder_add(addr: address) {
+    if self.holder_pos[addr] == 0 {
+      let idx = self.holder_count
+      self.holder_list[idx] = addr
+      self.holder_pos[addr] = idx + 1
+      self.holder_count     = idx + 1
+    }
+  }
+
+  private fn _holder_remove(addr: address) {
+    let pos1 = self.holder_pos[addr]
+    if pos1 != 0 {
+      let pos  = pos1 - 1
+      let last = self.holder_count - 1
+      if pos != last {
+        let last_addr = self.holder_list[last]
+        self.holder_list[pos]      = last_addr
+        self.holder_pos[last_addr] = pos + 1
+      }
+      self.holder_list[last] = 0
+      self.holder_count      = last
+      self.holder_pos[addr]  = 0
+    }
+  }
+
+  private fn _log_mint(token_id: u128, to: address, phase: u128, price: u128) {
+    let entry = concat("mint|", to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(to))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(phase))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(price))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    self.event_log[self.event_log_count] = entry
+    self.event_log_count += 1
+  }
+
+  private fn _log_transfer(token_id: u128, from: address, to: address) {
+    let entry = concat("xfer|", to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(from))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(to))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    self.event_log[self.event_log_count] = entry
+    self.event_log_count += 1
+  }
+
+  fn init(
+    collection_name: string,
+    collection_symbol: string,
+    collection_unrevealed_uri: string,
+    collection_max_supply: u128,
+    collection_royalty_bps: u128,
+    collection_max_per_wallet: u128,
+    xpectrum_addr: address,
+    creator: address,
+    xlist: address,
+    gtd_wallet: u128,
+    fcfs_wallet: u128,
+    pub_wallet: u128
+  ): bool {
+    require(self.initialized == 0, "genesis: already initialized")
+    require(caller == self.owner, "genesis: not authorized")
+    require(is_address(xpectrum_addr) && xpectrum_addr != 0, "genesis: invalid platform addr")
+    require(is_address(creator) && creator != 0, "genesis: invalid creator")
+    require(is_address(xlist) && xlist != 0, "genesis: invalid xlist addr")
+    require(collection_max_supply > 0, "genesis: invalid supply")
+    require(collection_royalty_bps <= MAX_ROYALTY_BPS, "genesis: invalid royalty")
+    require(collection_max_per_wallet > 0, "genesis: invalid wallet cap")
+    require(gtd_wallet > 0 && fcfs_wallet > 0 && pub_wallet > 0, "genesis: wallet caps must be > 0")
+
+    self.name = collection_name
+    self.symbol = collection_symbol
+    self.unrevealed_uri = collection_unrevealed_uri
+    self.max_supply = collection_max_supply
+    self.royalty_bps = collection_royalty_bps
+    self.max_per_wallet = collection_max_per_wallet
+    self.admin = xpectrum_addr
+    self.xpectrum_wallet = xpectrum_addr
+    self.royalty_receiver = creator
+    self.xlist_addr = xlist
+    self.gtd_wallet_cap = gtd_wallet
+    self.fcfs_wallet_cap = fcfs_wallet
+    self.public_wallet_cap = pub_wallet
+    self.trusted_factory = caller
+    self.initialized = 1
+    self.owner = creator
+
+    emit Initialized(creator, collection_name, collection_max_supply)
+    return true
+  }
+
+  view fn get_current_phase(): u128 {
+    if self.phase_override_active == 1 {
+      return self.phase_override_value
+    }
+    if epoch >= self.gtd_start_epoch && epoch < self.gtd_end_epoch { return 0 }
+    if epoch >= self.fcfs_start_epoch && epoch < self.fcfs_end_epoch { return 1 }
+    if epoch >= self.public_start_epoch && epoch < self.public_end_epoch { return 2 }
+    return 3
+  }
+
+  fn mint(quantity: u128): bool {
+    only_initialized()
+    require(self.paused == 0, "genesis: minting paused")
+    require(quantity > 0, "genesis: zero quantity")
+    require(quantity <= 5, "genesis: max 5 per tx")
+    require(self.total_minted + quantity <= self.max_supply, "genesis: exceeds max supply")
+    require(
+      self.minted_per_wallet[caller] + quantity <= self.max_per_wallet,
+      "genesis: global wallet cap exceeded"
+    )
+
+    let phase = get_current_phase()
+    require(phase != 3, "genesis: minting closed")
+
+    let price = 0
+    if phase == 0 {
+      let wl = call(self.xlist_addr, "is_whitelisted", 0, caller)
+      require(wl == 1, "genesis: not on GTD list")
+      require(self.phase_minted_by[0][caller] + quantity <= self.gtd_wallet_cap, "genesis: GTD phase wallet cap exceeded")
+      require(self.gtd_minted + quantity <= self.gtd_cap, "genesis: GTD cap reached")
+      price = self.gtd_price
+      self.gtd_minted += quantity
+      self.phase_minted_by[0][caller] += quantity
+    } else if phase == 1 {
+      let wl = call(self.xlist_addr, "is_whitelisted", 1, caller)
+      require(wl == 1, "genesis: not on FCFS list")
+      require(self.phase_minted_by[1][caller] + quantity <= self.fcfs_wallet_cap, "genesis: FCFS phase wallet cap exceeded")
+      require(self.fcfs_minted + quantity <= self.fcfs_cap, "genesis: FCFS cap reached")
+      price = self.fcfs_price
+      self.fcfs_minted += quantity
+      self.phase_minted_by[1][caller] += quantity
+    } else if phase == 2 {
+      require(self.phase_minted_by[2][caller] + quantity <= self.public_wallet_cap, "genesis: public phase wallet cap exceeded")
+      require(self.public_minted + quantity <= self.public_cap, "genesis: public cap reached")
+      price = self.public_price
+      self.public_minted += quantity
+      self.phase_minted_by[2][caller] += quantity
+    }
+
+    let cost = price * quantity
+    require(value >= cost, "genesis: insufficient payment")
+
+    let fee = cost * PLATFORM_FEE_BPS / 10000
+    require(cost >= fee, "genesis: fee exceeds cost")
+    let creator_proceeds = cost - fee
+    _reserve_add(value)
+    _credit(self.owner, creator_proceeds)
+    _credit(self.xpectrum_wallet, fee)
+    self.minted_per_wallet[caller] += quantity
+    _bal_add(caller, quantity)
+    _holder_add(caller)
+
+    let start_id = self.total_minted
+    self.total_minted += quantity
+    let idx = 0
+    for idx in 0..quantity {
+      let tid = start_id + idx
+      self.tokens[tid].owner = caller
+      self.tokens[tid].minted_epoch = epoch
+      _index_add(caller, tid)
+      _log_mint(tid, caller, phase, price)
+      emit Minted(caller, tid, phase, price)
+      emit Transferred(tid, 0, caller)
+    }
+
+    if value > cost {
+      let refund = value - cost
+      _reserve_sub(refund)
+      let rok: bool = transfer(caller, refund)
+      require(rok, "genesis: refund failed")
+    }
+    return true
+  }
+
+  fn airdrop(
+    addr_0: address, addr_1: address, addr_2: address, addr_3: address,
+    addr_4: address, addr_5: address, addr_6: address, addr_7: address,
+    addr_8: address, addr_9: address, addr_10: address, addr_11: address,
+    addr_12: address, addr_13: address, addr_14: address, addr_15: address,
+    addr_16: address, addr_17: address, addr_18: address, addr_19: address,
+    count: u128
+  ): bool {
+    only_initialized()
+    require(caller == self.owner, "genesis: only owner")
+    require(count > 0 && count <= 20, "genesis: count must be 1-20")
+    require(self.total_minted + count <= self.max_supply, "genesis: exceeds max supply")
+
+    let actual = 0
+    if count > 0  && is_address(addr_0)  && addr_0  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_0   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_0, 1)  _index_add(addr_0, tid)   _log_mint(tid, addr_0,  3, 0)  emit Minted(addr_0,  tid, 3, 0)  emit Airdropped(addr_0,  tid)  emit Transferred(tid, 0, addr_0)  }
+    if count > 1  && is_address(addr_1)  && addr_1  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_1   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_1, 1)  _index_add(addr_1, tid)   _log_mint(tid, addr_1,  3, 0)  emit Minted(addr_1,  tid, 3, 0)  emit Airdropped(addr_1,  tid)  emit Transferred(tid, 0, addr_1)  }
+    if count > 2  && is_address(addr_2)  && addr_2  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_2   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_2, 1)  _index_add(addr_2, tid)   _log_mint(tid, addr_2,  3, 0)  emit Minted(addr_2,  tid, 3, 0)  emit Airdropped(addr_2,  tid)  emit Transferred(tid, 0, addr_2)  }
+    if count > 3  && is_address(addr_3)  && addr_3  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_3   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_3, 1)  _index_add(addr_3, tid)   _log_mint(tid, addr_3,  3, 0)  emit Minted(addr_3,  tid, 3, 0)  emit Airdropped(addr_3,  tid)  emit Transferred(tid, 0, addr_3)  }
+    if count > 4  && is_address(addr_4)  && addr_4  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_4   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_4, 1)  _index_add(addr_4, tid)   _log_mint(tid, addr_4,  3, 0)  emit Minted(addr_4,  tid, 3, 0)  emit Airdropped(addr_4,  tid)  emit Transferred(tid, 0, addr_4)  }
+    if count > 5  && is_address(addr_5)  && addr_5  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_5   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_5, 1)  _index_add(addr_5, tid)   _log_mint(tid, addr_5,  3, 0)  emit Minted(addr_5,  tid, 3, 0)  emit Airdropped(addr_5,  tid)  emit Transferred(tid, 0, addr_5)  }
+    if count > 6  && is_address(addr_6)  && addr_6  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_6   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_6, 1)  _index_add(addr_6, tid)   _log_mint(tid, addr_6,  3, 0)  emit Minted(addr_6,  tid, 3, 0)  emit Airdropped(addr_6,  tid)  emit Transferred(tid, 0, addr_6)  }
+    if count > 7  && is_address(addr_7)  && addr_7  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_7   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_7, 1)  _index_add(addr_7, tid)   _log_mint(tid, addr_7,  3, 0)  emit Minted(addr_7,  tid, 3, 0)  emit Airdropped(addr_7,  tid)  emit Transferred(tid, 0, addr_7)  }
+    if count > 8  && is_address(addr_8)  && addr_8  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_8   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_8, 1)  _index_add(addr_8, tid)   _log_mint(tid, addr_8,  3, 0)  emit Minted(addr_8,  tid, 3, 0)  emit Airdropped(addr_8,  tid)  emit Transferred(tid, 0, addr_8)  }
+    if count > 9  && is_address(addr_9)  && addr_9  != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_9   self.tokens[tid].minted_epoch = epoch  _bal_add(addr_9, 1)  _index_add(addr_9, tid)   _log_mint(tid, addr_9,  3, 0)  emit Minted(addr_9,  tid, 3, 0)  emit Airdropped(addr_9,  tid)  emit Transferred(tid, 0, addr_9)  }
+    if count > 10 && is_address(addr_10) && addr_10 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_10  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_10, 1)  _index_add(addr_10, tid)  _log_mint(tid, addr_10, 3, 0)  emit Minted(addr_10, tid, 3, 0)  emit Airdropped(addr_10, tid)  emit Transferred(tid, 0, addr_10) }
+    if count > 11 && is_address(addr_11) && addr_11 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_11  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_11, 1)  _index_add(addr_11, tid)  _log_mint(tid, addr_11, 3, 0)  emit Minted(addr_11, tid, 3, 0)  emit Airdropped(addr_11, tid)  emit Transferred(tid, 0, addr_11) }
+    if count > 12 && is_address(addr_12) && addr_12 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_12  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_12, 1)  _index_add(addr_12, tid)  _log_mint(tid, addr_12, 3, 0)  emit Minted(addr_12, tid, 3, 0)  emit Airdropped(addr_12, tid)  emit Transferred(tid, 0, addr_12) }
+    if count > 13 && is_address(addr_13) && addr_13 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_13  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_13, 1)  _index_add(addr_13, tid)  _log_mint(tid, addr_13, 3, 0)  emit Minted(addr_13, tid, 3, 0)  emit Airdropped(addr_13, tid)  emit Transferred(tid, 0, addr_13) }
+    if count > 14 && is_address(addr_14) && addr_14 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_14  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_14, 1)  _index_add(addr_14, tid)  _log_mint(tid, addr_14, 3, 0)  emit Minted(addr_14, tid, 3, 0)  emit Airdropped(addr_14, tid)  emit Transferred(tid, 0, addr_14) }
+    if count > 15 && is_address(addr_15) && addr_15 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_15  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_15, 1)  _index_add(addr_15, tid)  _log_mint(tid, addr_15, 3, 0)  emit Minted(addr_15, tid, 3, 0)  emit Airdropped(addr_15, tid)  emit Transferred(tid, 0, addr_15) }
+    if count > 16 && is_address(addr_16) && addr_16 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_16  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_16, 1)  _index_add(addr_16, tid)  _log_mint(tid, addr_16, 3, 0)  emit Minted(addr_16, tid, 3, 0)  emit Airdropped(addr_16, tid)  emit Transferred(tid, 0, addr_16) }
+    if count > 17 && is_address(addr_17) && addr_17 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_17  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_17, 1)  _index_add(addr_17, tid)  _log_mint(tid, addr_17, 3, 0)  emit Minted(addr_17, tid, 3, 0)  emit Airdropped(addr_17, tid)  emit Transferred(tid, 0, addr_17) }
+    if count > 18 && is_address(addr_18) && addr_18 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_18  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_18, 1)  _index_add(addr_18, tid)  _log_mint(tid, addr_18, 3, 0)  emit Minted(addr_18, tid, 3, 0)  emit Airdropped(addr_18, tid)  emit Transferred(tid, 0, addr_18) }
+    if count > 19 && is_address(addr_19) && addr_19 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_19  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_19, 1)  _index_add(addr_19, tid)  _log_mint(tid, addr_19, 3, 0)  emit Minted(addr_19, tid, 3, 0)  emit Airdropped(addr_19, tid)  emit Transferred(tid, 0, addr_19) }
+
+    if count > 0  && is_address(addr_0)  && addr_0  != 0 { _holder_add(addr_0)  }
+    if count > 1  && is_address(addr_1)  && addr_1  != 0 { _holder_add(addr_1)  }
+    if count > 2  && is_address(addr_2)  && addr_2  != 0 { _holder_add(addr_2)  }
+    if count > 3  && is_address(addr_3)  && addr_3  != 0 { _holder_add(addr_3)  }
+    if count > 4  && is_address(addr_4)  && addr_4  != 0 { _holder_add(addr_4)  }
+    if count > 5  && is_address(addr_5)  && addr_5  != 0 { _holder_add(addr_5)  }
+    if count > 6  && is_address(addr_6)  && addr_6  != 0 { _holder_add(addr_6)  }
+    if count > 7  && is_address(addr_7)  && addr_7  != 0 { _holder_add(addr_7)  }
+    if count > 8  && is_address(addr_8)  && addr_8  != 0 { _holder_add(addr_8)  }
+    if count > 9  && is_address(addr_9)  && addr_9  != 0 { _holder_add(addr_9)  }
+    if count > 10 && is_address(addr_10) && addr_10 != 0 { _holder_add(addr_10) }
+    if count > 11 && is_address(addr_11) && addr_11 != 0 { _holder_add(addr_11) }
+    if count > 12 && is_address(addr_12) && addr_12 != 0 { _holder_add(addr_12) }
+    if count > 13 && is_address(addr_13) && addr_13 != 0 { _holder_add(addr_13) }
+    if count > 14 && is_address(addr_14) && addr_14 != 0 { _holder_add(addr_14) }
+    if count > 15 && is_address(addr_15) && addr_15 != 0 { _holder_add(addr_15) }
+    if count > 16 && is_address(addr_16) && addr_16 != 0 { _holder_add(addr_16) }
+    if count > 17 && is_address(addr_17) && addr_17 != 0 { _holder_add(addr_17) }
+    if count > 18 && is_address(addr_18) && addr_18 != 0 { _holder_add(addr_18) }
+    if count > 19 && is_address(addr_19) && addr_19 != 0 { _holder_add(addr_19) }
+
+    if count > 0  && is_address(addr_0)  && addr_0  != 0 { self.minted_per_wallet[addr_0]  += 1 }
+    if count > 1  && is_address(addr_1)  && addr_1  != 0 { self.minted_per_wallet[addr_1]  += 1 }
+    if count > 2  && is_address(addr_2)  && addr_2  != 0 { self.minted_per_wallet[addr_2]  += 1 }
+    if count > 3  && is_address(addr_3)  && addr_3  != 0 { self.minted_per_wallet[addr_3]  += 1 }
+    if count > 4  && is_address(addr_4)  && addr_4  != 0 { self.minted_per_wallet[addr_4]  += 1 }
+    if count > 5  && is_address(addr_5)  && addr_5  != 0 { self.minted_per_wallet[addr_5]  += 1 }
+    if count > 6  && is_address(addr_6)  && addr_6  != 0 { self.minted_per_wallet[addr_6]  += 1 }
+    if count > 7  && is_address(addr_7)  && addr_7  != 0 { self.minted_per_wallet[addr_7]  += 1 }
+    if count > 8  && is_address(addr_8)  && addr_8  != 0 { self.minted_per_wallet[addr_8]  += 1 }
+    if count > 9  && is_address(addr_9)  && addr_9  != 0 { self.minted_per_wallet[addr_9]  += 1 }
+    if count > 10 && is_address(addr_10) && addr_10 != 0 { self.minted_per_wallet[addr_10] += 1 }
+    if count > 11 && is_address(addr_11) && addr_11 != 0 { self.minted_per_wallet[addr_11] += 1 }
+    if count > 12 && is_address(addr_12) && addr_12 != 0 { self.minted_per_wallet[addr_12] += 1 }
+    if count > 13 && is_address(addr_13) && addr_13 != 0 { self.minted_per_wallet[addr_13] += 1 }
+    if count > 14 && is_address(addr_14) && addr_14 != 0 { self.minted_per_wallet[addr_14] += 1 }
+    if count > 15 && is_address(addr_15) && addr_15 != 0 { self.minted_per_wallet[addr_15] += 1 }
+    if count > 16 && is_address(addr_16) && addr_16 != 0 { self.minted_per_wallet[addr_16] += 1 }
+    if count > 17 && is_address(addr_17) && addr_17 != 0 { self.minted_per_wallet[addr_17] += 1 }
+    if count > 18 && is_address(addr_18) && addr_18 != 0 { self.minted_per_wallet[addr_18] += 1 }
+    if count > 19 && is_address(addr_19) && addr_19 != 0 { self.minted_per_wallet[addr_19] += 1 }
+
+    self.airdropped_count += actual
+    require(actual == count, "genesis: address mismatch -- all addresses up to count must be valid and non-zero")
+    return true
+  }
+
+  fn transfer(to: address, token_id: u128): bool {
+    only_initialized()
+    require(token_id < self.total_minted, "genesis: token not found")
+    require(is_address(to) && to != 0, "genesis: invalid address")
+
+    let current_owner = self.tokens[token_id].owner
+    require(caller == current_owner, "genesis: not owner")
+    require(to != current_owner, "genesis: already owner")
+
+    self.tokens[token_id].owner = to
+    _bal_sub(current_owner, 1)
+    _bal_add(to, 1)
+    self.approvals[token_id] = 0
+    _index_remove(current_owner, token_id)
+    _index_add(to, token_id)
+    if self.balances[current_owner] == 0 { _holder_remove(current_owner) }
+    _holder_add(to)
+    _log_transfer(token_id, current_owner, to)
+
+    emit Transferred(token_id, current_owner, to)
+    return true
+  }
+
+  fn transfer_from(from: address, to: address, token_id: u128): bool {
+    only_initialized()
+    require(token_id < self.total_minted, "genesis: token not found")
+    require(is_address(from) && from != 0, "genesis: invalid from address")
+    require(is_address(to) && to != 0, "genesis: invalid address")
+
+    let current_owner = self.tokens[token_id].owner
+    require(from == current_owner, "genesis: from is not owner")
+    require(to != current_owner, "genesis: already owner")
+
+    let approved = self.approvals[token_id]
+    let is_op = self.operator_approvals[from][caller]
+    require(
+      caller == current_owner || caller == approved || is_op == 1,
+      "genesis: not authorized"
+    )
+
+    self.tokens[token_id].owner = to
+    _bal_sub(from, 1)
+    _bal_add(to, 1)
+    self.approvals[token_id] = 0
+    _index_remove(from, token_id)
+    _index_add(to, token_id)
+    if self.balances[from] == 0 { _holder_remove(from) }
+    _holder_add(to)
+    _log_transfer(token_id, from, to)
+
+    emit Transferred(token_id, from, to)
+    return true
+  }
+
+  fn approve(approved: address, token_id: u128): bool {
+    only_initialized()
+    require(token_id < self.total_minted, "genesis: token not found")
+    require(is_address(approved) && approved != 0, "genesis: use revoke_approval to clear")
+
+    let current_owner = self.tokens[token_id].owner
+    let is_op = self.operator_approvals[current_owner][caller]
+    require(caller == current_owner || is_op == 1, "genesis: not authorized")
+
+    self.approvals[token_id] = approved
+    emit Approved(token_id, approved)
+    return true
+  }
+
+  fn revoke_approval(token_id: u128): bool {
+    only_initialized()
+    require(token_id < self.total_minted, "genesis: token not found")
+
+    let current_owner = self.tokens[token_id].owner
+    let is_op = self.operator_approvals[current_owner][caller]
+    require(caller == current_owner || is_op == 1, "genesis: not authorized")
+
+    if self.approvals[token_id] != 0 {
+      self.approvals[token_id] = 0
+      emit ApprovalRevoked(token_id)
+    }
+    return true
+  }
+
+  fn set_operator(operator: address, approved: u128): bool {
+    only_initialized()
+    require(operator != caller, "genesis: cannot self-operate")
+    require(is_address(operator) && operator != 0, "genesis: invalid operator")
+    require(approved == 0 || approved == 1, "genesis: approved must be 0 or 1")
+
+    self.operator_approvals[caller][operator] = approved
+    emit OperatorSet(caller, operator, approved)
+    return true
+  }
+
+  fn claim_proceeds(): bool {
+    only_initialized()
+    let amount = self.pending_proceeds[caller]
+    require(amount > 0, "genesis: nothing to claim")
+    self.pending_proceeds[caller] = 0
+    _reserve_sub(amount)
+    let ok: bool = transfer(caller, amount)
+    require(ok, "genesis: transfer failed")
+    emit ProceedsClaimed(caller, amount)
+    return true
+  }
+
+  fn reveal(uri: string): bool {
+    only_initialized()
+    only_owner_or_admin()
+    self.base_uri = uri
+    self.revealed = 1
+    emit Revealed(uri)
+    return true
+  }
+
+  fn update_base_uri(uri: string): bool {
+    only_initialized()
+    only_owner_or_admin()
+    self.base_uri = uri
+    emit BaseUriUpdated(uri)
+    return true
+  }
+
+  fn set_unrevealed_uri(uri: string): bool {
+    only_initialized()
+    only_owner_or_admin()
+    self.unrevealed_uri = uri
+    emit UnrevealedUriSet(uri)
+    return true
+  }
+
+  fn add_collection_circle_resource(base_uri: string, suffix: string, unrevealed_uri: string, access: string): u128 {
+    only_initialized()
+    only_owner_or_admin()
+
+    let resource_id = self.circle_resource_count
+    self.circle_base_uri[resource_id] = base_uri
+    self.circle_uri_suffix[resource_id] = suffix
+    self.circle_unrevealed_uri[resource_id] = unrevealed_uri
+    self.circle_resource_access[resource_id] = access
+    self.circle_resource_active[resource_id] = 1
+    self.circle_resource_count += 1
+    emit CollectionCircleResourceSet(resource_id, base_uri, suffix, unrevealed_uri, access)
+    return resource_id
+  }
+
+  fn set_collection_circle_resource(resource_id: u128, base_uri: string, suffix: string, unrevealed_uri: string, access: string): bool {
+    only_initialized()
+    only_owner_or_admin()
+    require(resource_id < self.circle_resource_count, "genesis: circle resource not found")
+
+    self.circle_base_uri[resource_id] = base_uri
+    self.circle_uri_suffix[resource_id] = suffix
+    self.circle_unrevealed_uri[resource_id] = unrevealed_uri
+    self.circle_resource_access[resource_id] = access
+    self.circle_resource_active[resource_id] = 1
+    emit CollectionCircleResourceSet(resource_id, base_uri, suffix, unrevealed_uri, access)
+    return true
+  }
+
+  fn clear_collection_circle_resource(resource_id: u128): bool {
+    only_initialized()
+    only_owner_or_admin()
+    require(resource_id < self.circle_resource_count, "genesis: circle resource not found")
+
+    self.circle_base_uri[resource_id] = ""
+    self.circle_uri_suffix[resource_id] = ""
+    self.circle_unrevealed_uri[resource_id] = ""
+    self.circle_resource_access[resource_id] = ""
+    self.circle_resource_active[resource_id] = 0
+    emit CollectionCircleResourceCleared(resource_id)
+    return true
+  }
+
+  fn update_phase_prices(gtd: u128, fcfs: u128, pub_price: u128): bool {
+    only_initialized()
+    only_owner_or_admin()
+    require(true, "genesis: invalid price")
+    self.gtd_price = gtd
+    self.fcfs_price = fcfs
+    self.public_price = pub_price
+    emit PhasePriceUpdated(gtd, fcfs, pub_price)
+    return true
+  }
+
+  fn update_phase_caps(gtd_cap: u128, fcfs_cap: u128, pub_cap: u128): bool {
+    only_initialized()
+    only_owner_or_admin()
+    require(true, "genesis: invalid cap")
+    require(gtd_cap >= self.gtd_minted, "genesis: cannot lower GTD cap below minted amount")
+    require(fcfs_cap >= self.fcfs_minted, "genesis: cannot lower FCFS cap below minted amount")
+    require(pub_cap >= self.public_minted, "genesis: cannot lower public cap below minted amount")
+    require(
+      gtd_cap + fcfs_cap + pub_cap + self.airdropped_count <= self.max_supply,
+      "genesis: caps plus airdrops exceed max supply"
+    )
+    self.gtd_cap = gtd_cap
+    self.fcfs_cap = fcfs_cap
+    self.public_cap = pub_cap
+    emit PhaseCapUpdated(gtd_cap, fcfs_cap, pub_cap)
+    return true
+  }
+
+  fn update_phase_wallet_caps(gtd_wallet: u128, fcfs_wallet: u128, pub_wallet: u128): bool {
+    only_initialized()
+    only_owner_or_admin()
+    require(gtd_wallet > 0 && fcfs_wallet > 0 && pub_wallet > 0, "genesis: wallet caps must be > 0")
+    self.gtd_wallet_cap = gtd_wallet
+    self.fcfs_wallet_cap = fcfs_wallet
+    self.public_wallet_cap = pub_wallet
+    emit PhaseWalletCapUpdated(gtd_wallet, fcfs_wallet, pub_wallet)
+    return true
+  }
+
+  fn update_phase_epochs(
+    gtd_start: u128, gtd_end: u128,
+    fcfs_start: u128, fcfs_end: u128,
+    pub_start: u128, pub_end: u128
+  ): bool {
+    only_initialized()
+    only_owner_or_admin()
+
+    require(gtd_end >= gtd_start, "genesis: GTD end before start")
+    require(fcfs_end >= fcfs_start, "genesis: FCFS end before start")
+    require(pub_end >= pub_start, "genesis: public end before start")
+    let gtd_duration = gtd_end - gtd_start
+    let fcfs_duration = fcfs_end - fcfs_start
+    let pub_duration = pub_end - pub_start
+
+    require(gtd_duration >= MIN_PHASE_EPOCHS, "genesis: GTD phase too short (min 1 hour)")
+    require(gtd_duration <= MAX_GTD_EPOCHS, "genesis: GTD phase too long (max 30 days)")
+    require(pub_duration >= MIN_PHASE_EPOCHS, "genesis: public phase too short (min 1 hour)")
+    require(fcfs_end >= fcfs_start, "genesis: invalid FCFS range")
+    let fcfs_active = fcfs_start < fcfs_end
+    if fcfs_active {
+      require(fcfs_start >= gtd_end, "genesis: FCFS must start after GTD")
+      require(
+        fcfs_duration >= MIN_PHASE_EPOCHS && fcfs_duration <= MAX_FCFS_EPOCHS,
+        "genesis: FCFS phase duration invalid"
+      )
+      require(pub_start >= fcfs_end, "genesis: public must start after FCFS")
+    }
+    if fcfs_active == false {
+      require(pub_start >= gtd_end, "genesis: public must start after GTD when FCFS is skipped")
+    }
+
+    self.gtd_start_epoch = gtd_start
+    self.gtd_end_epoch = gtd_end
+    self.fcfs_start_epoch = fcfs_start
+    self.fcfs_end_epoch = fcfs_end
+    self.public_start_epoch = pub_start
+    self.public_end_epoch = pub_end
+    emit PhaseEpochsUpdated(gtd_start, gtd_end, fcfs_start, fcfs_end, pub_start, pub_end)
+    return true
+  }
+
+  fn set_phase_override(phase_num: u128): bool {
+    only_initialized()
+    only_owner_or_admin()
+    require(phase_num >= 0 && phase_num <= 2, "genesis: override must be an active phase (0-2); use pause() to stop minting")
+    self.phase_override_active = 1
+    self.phase_override_value = phase_num
+    emit PhaseOverrideSet(phase_num)
+    return true
+  }
+
+  fn clear_phase_override(): bool {
+    only_initialized()
+    only_owner_or_admin()
+    self.phase_override_active = 0
+    self.phase_override_value = 3
+    emit PhaseOverrideCleared()
+    return true
+  }
+
+  fn pause(): bool {
+    only_initialized()
+    only_owner_or_admin()
+    self.paused = 1
+    emit Paused()
+    return true
+  }
+
+  fn unpause(): bool {
+    only_initialized()
+    only_owner_or_admin()
+    self.paused = 0
+    emit Unpaused()
+    return true
+  }
+
+  fn set_max_per_wallet(max_val: u128): bool {
+    only_initialized()
+    only_owner_or_admin()
+    require(max_val > 0, "genesis: invalid cap")
+    self.max_per_wallet = max_val
+    return true
+  }
+
+  fn update_xpectrum_wallet(new_wallet: address): bool {
+    only_initialized()
+    require(caller == self.admin, "genesis: only admin")
+    require(is_address(new_wallet) && new_wallet != 0, "genesis: invalid address")
+    self.xpectrum_wallet = new_wallet
+    emit XpectrumWalletUpdated(new_wallet)
+    return true
+  }
+
+  fn update_admin(new_admin: address): bool {
+    only_initialized()
+    require(caller == self.admin, "genesis: only admin")
+    require(is_address(new_admin) && new_admin != 0, "genesis: invalid address")
+    self.admin = new_admin
+    return true
+  }
+
+  fn set_trusted_factory(new_factory: address): bool {
+    only_initialized()
+    require(caller == self.admin, "genesis: only admin")
+    require(is_address(new_factory), "genesis: invalid address")
+    self.trusted_factory = new_factory
+    emit TrustedFactoryUpdated(new_factory)
+    return true
+  }
+
+  fn update_royalty_receiver(new_receiver: address): bool {
+    only_initialized()
+    require(
+      caller == self.royalty_receiver || caller == self.owner,
+      "genesis: not authorized"
+    )
+    require(is_address(new_receiver) && new_receiver != 0, "genesis: invalid address")
+    self.royalty_receiver = new_receiver
+    return true
+  }
+
+  fn transfer_ownership(new_owner: address): bool {
+    only_initialized()
+    require(caller == self.owner, "genesis: not owner")
+    require(is_address(new_owner) && new_owner != 0, "genesis: invalid address")
+    let old = self.owner
+    self.owner = new_owner
+    emit OwnershipTransferred(old, new_owner)
+    return true
+  }
+
+  fn update_xlist(new_xlist: address): bool {
+    only_initialized()
+    require(caller == self.admin, "genesis: only admin")
+    require(is_address(new_xlist) && new_xlist != 0, "genesis: invalid address")
+    self.xlist_addr = new_xlist
+    return true
+  }
+
+  view fn owner_of(token_id: u128): address {
+    require(token_id < self.total_minted, "genesis: token not found")
+    return self.tokens[token_id].owner
+  }
+
+  view fn creator_of(token_id: u128): address {
+    require(token_id < self.total_minted, "genesis: token not found")
+    return self.royalty_receiver
+  }
+
+  view fn royalty_of(token_id: u128): u128 {
+    require(token_id < self.total_minted, "genesis: token not found")
+    return self.royalty_bps
+  }
+
+  view fn token_uri(token_id: u128): string {
+    require(token_id < self.total_minted, "genesis: token not found")
+    if self.revealed == 1 {
+      let uri = self.base_uri
+      uri = concat(uri, to_string(token_id))
+      uri = concat(uri, ".json")
+      return uri
+    }
+    return self.unrevealed_uri
+  }
+
+  view fn collection_circle_count(): u128 {
+    return self.circle_resource_count
+  }
+
+  view fn token_circle_count(token_id: u128): u128 {
+    require(token_id < self.total_minted, "genesis: token not found")
+    return self.circle_resource_count
+  }
+
+  view fn token_circle_uri(token_id: u128, resource_id: u128): string {
+    require(token_id < self.total_minted, "genesis: token not found")
+    require(resource_id < self.circle_resource_count, "genesis: circle resource not found")
+    if self.circle_resource_active[resource_id] == 0 {
+      return ""
+    }
+    if self.revealed == 0 && self.circle_unrevealed_uri[resource_id] != "" {
+      return self.circle_unrevealed_uri[resource_id]
+    }
+    if self.circle_base_uri[resource_id] == "" {
+      return ""
+    }
+    let uri = self.circle_base_uri[resource_id]
+    uri = concat(uri, to_string(token_id))
+    uri = concat(uri, self.circle_uri_suffix[resource_id])
+    return uri
+  }
+
+  view fn collection_of(token_id: u128): string {
+    require(token_id < self.total_minted, "genesis: token not found")
+    return self.name
+  }
+
+  view fn balance_of(addr: address): u128 {
+    return self.balances[addr]
+  }
+
+  view fn get_approved(token_id: u128): address {
+    return self.approvals[token_id]
+  }
+
+  view fn total_supply(): u128 {
+    return self.total_minted
+  }
+
+  view fn collection_name(): string {
+    return self.name
+  }
+
+  view fn symbol(): string {
+    return self.symbol
+  }
+
+  view fn is_approved_or_owner(token_id: u128, addr: address): u128 {
+    require(addr != 0, "genesis: zero address")
+    require(token_id < self.total_minted, "genesis: token not found")
+    let current_owner = self.tokens[token_id].owner
+    if addr == current_owner { return 1 }
+    if self.approvals[token_id] == addr { return 1 }
+    if self.operator_approvals[current_owner][addr] == 1 { return 1 }
+    return 0
+  }
+
+  view fn get_minted_by_wallet(addr: address): u128 {
+    return self.minted_per_wallet[addr]
+  }
+
+  view fn get_pending_proceeds(addr: address): u128 {
+    return self.pending_proceeds[addr]
+  }
+
+  view fn get_reserve(): u128 {
+    return self.reserve
+  }
+
+  view fn get_token_info(token_id: u128): string {
+    require(token_id < self.total_minted, "genesis: token not found")
+    let uri = self.unrevealed_uri
+    if self.revealed == 1 {
+      uri = concat(self.base_uri, to_string(token_id))
+      uri = concat(uri, ".json")
+    }
+    let out = to_string(token_id)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.tokens[token_id].owner))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.royalty_receiver))
+    out = concat(out, "|")
+    out = concat(out, self.name)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.royalty_bps))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.tokens[token_id].minted_epoch))
+    out = concat(out, "|")
+    out = concat(out, uri)
+    return out
+  }
+
+  view fn get_token_circle_info(token_id: u128, resource_id: u128): string {
+    require(token_id < self.total_minted, "genesis: token not found")
+    require(resource_id < self.circle_resource_count, "genesis: circle resource not found")
+
+    let out = to_string(token_id)
+    out = concat(out, "|")
+    out = concat(out, to_string(resource_id))
+    out = concat(out, "|")
+    out = concat(out, token_circle_uri(token_id, resource_id))
+    out = concat(out, "|")
+    out = concat(out, self.circle_resource_access[resource_id])
+    out = concat(out, "|")
+    out = concat(out, to_string(self.circle_resource_active[resource_id]))
+    out = concat(out, "|1")
+    return out
+  }
+
+  view fn get_collection_circle_info(resource_id: u128): string {
+    require(resource_id < self.circle_resource_count, "genesis: circle resource not found")
+
+    let out = to_string(resource_id)
+    out = concat(out, "|")
+    out = concat(out, self.circle_base_uri[resource_id])
+    out = concat(out, "|")
+    out = concat(out, self.circle_uri_suffix[resource_id])
+    out = concat(out, "|")
+    out = concat(out, self.circle_unrevealed_uri[resource_id])
+    out = concat(out, "|")
+    out = concat(out, self.circle_resource_access[resource_id])
+    out = concat(out, "|")
+    out = concat(out, to_string(self.circle_resource_active[resource_id]))
+    out = concat(out, "|1")
+    return out
+  }
+
+  view fn get_contract_info(): string {
+    let out = self.name
+    out = concat(out, "|")
+    out = concat(out, self.symbol)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.total_minted))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.max_supply))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.royalty_bps))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.owner))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.revealed))
+    return out
+  }
+
+  view fn get_phase_info(): string {
+    let out = to_string(self.gtd_price)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.gtd_start_epoch))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.gtd_end_epoch))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.gtd_cap))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.gtd_minted))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.gtd_wallet_cap))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.fcfs_price))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.fcfs_start_epoch))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.fcfs_end_epoch))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.fcfs_cap))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.fcfs_minted))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.fcfs_wallet_cap))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.public_price))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.public_start_epoch))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.public_end_epoch))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.public_cap))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.public_minted))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.public_wallet_cap))
+    return out
+  }
+
+  view fn get_wallet_state(wallet: address): string {
+    let phase = get_current_phase()
+    let wl_gtd = call(self.xlist_addr, "check", 0, wallet)
+    let wl_fcfs = call(self.xlist_addr, "check", 1, wallet)
+    let out = to_string(self.paused)
+    out = concat(out, "|")
+    out = concat(out, to_string(phase))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.minted_per_wallet[wallet]))
+    out = concat(out, "|")
+    out = concat(out, to_string(wl_gtd))
+    out = concat(out, "|")
+    out = concat(out, to_string(wl_fcfs))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.pending_proceeds[wallet]))
+    return out
+  }
+
+  view fn tokens_of(wallet: address, offset: u128, limit: u128): string {
+    let total = self.owner_token_count[wallet]
+    let out = to_string(total)
+    let safe_limit = limit
+    if safe_limit > 500 { safe_limit = 500 }
+    let i = 0
+    for i in 0..safe_limit {
+      let real_idx = offset + i
+      if real_idx < total {
+        out = concat(out, "|")
+        out = concat(out, to_string(self.owner_token_index[wallet][real_idx]))
+      }
+    }
+    return out
+  }
+
+  view fn get_tokens_page(offset: u128, limit: u128): string {
+    let total = self.total_minted
+    let safe_limit = limit
+    if safe_limit > 100 { safe_limit = 100 }
+    let out = to_string(total)
+    let i = 0
+    for i in 0..safe_limit {
+      let idx = offset + i
+      if idx < total {
+        let uri = self.unrevealed_uri
+        if self.revealed == 1 {
+          uri = concat(self.base_uri, to_string(idx))
+          uri = concat(uri, ".json")
+        }
+        out = concat(out, "~")
+        out = concat(out, to_string(idx))
+        out = concat(out, "|")
+        out = concat(out, to_string(self.tokens[idx].owner))
+        out = concat(out, "|")
+        out = concat(out, uri)
+      }
+    }
+    return out
+  }
+
+  // Returns: total|addr0:balance0|addr1:balance1|...  (owner/admin gated)
+  view fn get_holders_page(offset: u128, limit: u128): string {
+    require(caller == self.owner || caller == self.admin, "genesis: not authorized")
+    let total = self.holder_count
+    let out = to_string(total)
+    if total == 0 { return out }
+    let safe_limit = limit
+    if safe_limit > 200 { safe_limit = 200 }
+    let end = offset + safe_limit
+    if end > total { end = total }
+    let n = end - offset
+    let i = 0
+    for i in 0..n {
+      let addr = self.holder_list[offset + i]
+      out = concat(out, "|")
+      out = concat(out, to_string(addr))
+      out = concat(out, ":")
+      out = concat(out, to_string(self.balances[addr]))
+    }
+    return out
+  }
+
+  view fn get_event_log(from: u128, count: u128): string {
+    let total = self.event_log_count
+    let out = to_string(total)
+    let safe_count = count
+    if safe_count > 50 { safe_count = 50 }
+    let i = 0
+    for i in 0..safe_count {
+      let idx = from + i
+      if idx < total {
+        out = concat(out, "~")
+        out = concat(out, self.event_log[idx])
+      }
+    }
+    return out
+  }
+
+}

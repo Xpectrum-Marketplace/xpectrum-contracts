@@ -1,0 +1,598 @@
+// Xmarket v3 >> Xpectrum secondary marketplace
+// works with any XNS-1 compatible contract. list, buy, cancel, offers, royalties enforced.
+// collection offers use offer_is_collection flag (replaces token_id == -1 from v2).
+//
+// get_listing(id)    >> listing_id | seller | nft_contract | token_id | price | status | listed_epoch
+// get_offer(id)      >> offer_id | offerer | nft_contract | token_id | offer_is_collection | amount | expires_epoch | active
+// get_market_info()  >> listing_count | offer_count | total_volume | fee_balance | reserve | offer_reserve
+//
+// formally verified (aml_safety_report_v1, errors: 0, warnings: 0)
+// bytecode_hash:     ed809dada529da0c140f6567af7a1b7f600c74e270867ca108e170db2e0da725
+// verification_hash: f80048b597fb5f5c2df0314d6f1daaa453e61dbf584ff724fdb35b7b6ad38d2c
+
+contract Xmarket_v3 {
+
+  const MARKETPLACE_FEE_BPS: u128 = 250
+  const MAX_ROYALTY_BPS:     u128 = 1000
+  const MAX_OFFER_DURATION:  u128 = 518400
+
+  state {
+    owner:         address
+    listing_count: u128
+    offer_count:   u128
+    total_volume:  u128
+    fee_balance:   u128
+    reserve:       u128
+    offer_reserve: u128
+
+    pending_proceeds: map[address]u128
+
+    listing_seller:   map[u128]address
+    listing_contract: map[u128]address
+    listing_token_id: map[u128]u128
+    listing_price:    map[u128]u128
+    listing_status:   map[u128]u128
+    listing_epoch:    map[u128]u128
+
+    offer_offerer:       map[u128]address
+    offer_contract:      map[u128]address
+    offer_token_id:      map[u128]u128
+    offer_is_collection: map[u128]u128
+    offer_amount:        map[u128]u128
+    offer_expires:       map[u128]u128
+    offer_active:        map[u128]u128
+
+    // (listing_id + 1) sentinel; 0 = no active listing
+    contract_token_listing: map[address]map[u128]u128
+
+    // global active listing index (swap-and-pop)
+    active_ids:   map[u128]u128
+    active_pos:   map[u128]u128
+    active_count: u128
+
+    // per-collection active listing index (swap-and-pop)
+    coll_ids:   map[address]map[u128]u128
+    coll_pos:   map[address]map[u128]u128
+    coll_count: map[address]u128
+
+    event_log:       map[u128]string
+    event_log_count: u128
+  }
+
+  constructor() {
+    self.owner = caller
+  }
+
+  private fn only_owner() {
+    require(caller == self.owner, "xmarket: not owner")
+  }
+
+  private fn _index_add(listing_id: u128, nft_contract: address) {
+    let gidx: u128 = self.active_count
+    self.active_ids[gidx]       = listing_id
+    self.active_pos[listing_id] = gidx
+    self.active_count += 1
+
+    let cidx: u128 = self.coll_count[nft_contract]
+    self.coll_ids[nft_contract][cidx]       = listing_id
+    self.coll_pos[nft_contract][listing_id] = cidx
+    self.coll_count[nft_contract] += 1
+  }
+
+  private fn _index_remove(listing_id: u128, nft_contract: address) {
+    require(self.active_count >= 1, "xmarket: empty active index")
+    let gpos: u128  = self.active_pos[listing_id]
+    let glast: u128 = self.active_count - 1
+    if gpos != glast {
+      let last_id: u128 = self.active_ids[glast]
+      self.active_ids[gpos]    = last_id
+      self.active_pos[last_id] = gpos
+    }
+    self.active_ids[glast]      = 0
+    self.active_pos[listing_id] = 0
+    self.active_count = glast
+
+    require(self.coll_count[nft_contract] >= 1, "xmarket: empty coll index")
+    let cpos: u128  = self.coll_pos[nft_contract][listing_id]
+    let clast: u128 = self.coll_count[nft_contract] - 1
+    if cpos != clast {
+      let clast_id: u128 = self.coll_ids[nft_contract][clast]
+      self.coll_ids[nft_contract][cpos]     = clast_id
+      self.coll_pos[nft_contract][clast_id] = cpos
+    }
+    self.coll_ids[nft_contract][clast]      = 0
+    self.coll_pos[nft_contract][listing_id] = 0
+    self.coll_count[nft_contract] = clast
+  }
+
+  private fn _log(entry: string) {
+    self.event_log[self.event_log_count] = entry
+    self.event_log_count += 1
+  }
+
+  private fn _credit(recipient: address, amount: u128) {
+    let np: u128 = self.pending_proceeds[recipient] + amount
+    require(np >= self.pending_proceeds[recipient], "xmarket: proceeds overflow")
+    self.pending_proceeds[recipient] = np
+  }
+
+  private fn _settle(listing_id: u128, buyer: address) {
+    let nft_contract = self.listing_contract[listing_id]
+    let token_id     = self.listing_token_id[listing_id]
+    let price        = self.listing_price[listing_id]
+    let seller       = self.listing_seller[listing_id]
+
+    let creator      = call(nft_contract, "creator_of",  token_id)
+    let royalty_bps  = call(nft_contract, "royalty_of",  token_id)
+    let safe_royalty = royalty_bps
+    if safe_royalty > MAX_ROYALTY_BPS { safe_royalty = MAX_ROYALTY_BPS }
+
+    let fee        = price * MARKETPLACE_FEE_BPS / 10000
+    let royalty    = price * safe_royalty / 10000
+    require(fee + royalty <= price, "xmarket: fee+royalty exceed price")
+    let seller_cut = price - fee - royalty
+
+    _credit(seller, seller_cut)
+    _credit(creator, royalty)
+    let nfb: u128 = self.fee_balance + fee
+    require(nfb >= self.fee_balance, "xmarket: fee overflow")
+    self.fee_balance = nfb
+
+    require(self.reserve >= price, "xmarket: reserve underflow")
+    self.reserve -= price
+    let ntv: u128 = self.total_volume + price
+    require(ntv >= self.total_volume, "xmarket: volume overflow")
+    self.total_volume = ntv
+
+    self.listing_status[listing_id]                     = 2
+    self.contract_token_listing[nft_contract][token_id] = 0
+    _index_remove(listing_id, nft_contract)
+
+    let moved: bool = call(nft_contract, "transfer_from", seller, buyer, token_id)
+    require(moved, "xmarket: nft transfer failed")
+
+    let entry = concat("sale|", to_string(listing_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(buyer))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(seller))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(nft_contract))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(price))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    _log(entry)
+  }
+
+  // =============================================================
+  // Listing
+  // =============================================================
+
+  fn list_nft(nft_contract: address, token_id: u128, price: u128): u128 {
+    require(is_address(nft_contract) && nft_contract != 0, "xmarket: invalid contract")
+    require(price > 0, "xmarket: price > 0 required")
+    require(self.contract_token_listing[nft_contract][token_id] == 0, "xmarket: already listed")
+
+    let approved = call(nft_contract, "is_approved_or_owner", token_id, caller)
+    require(approved == 1, "xmarket: not approved or owner")
+
+    let id: u128 = self.listing_count
+    self.listing_seller[id]   = caller
+    self.listing_contract[id] = nft_contract
+    self.listing_token_id[id] = token_id
+    self.listing_price[id]    = price
+    self.listing_status[id]   = 1
+    self.listing_epoch[id]    = epoch
+    self.listing_count += 1
+
+    self.contract_token_listing[nft_contract][token_id] = id + 1
+    _index_add(id, nft_contract)
+
+    let entry = concat("list|", to_string(id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(caller))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(nft_contract))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(price))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    _log(entry)
+    return id
+  }
+
+  fn cancel_listing(listing_id: u128): bool {
+    require(listing_id < self.listing_count, "xmarket: bad listing id")
+    require(self.listing_status[listing_id] == 1, "xmarket: not active")
+    require(caller == self.listing_seller[listing_id] || caller == self.owner, "xmarket: not seller")
+
+    let nft_contract = self.listing_contract[listing_id]
+    let token_id     = self.listing_token_id[listing_id]
+
+    self.listing_status[listing_id]                     = 0
+    self.contract_token_listing[nft_contract][token_id] = 0
+    _index_remove(listing_id, nft_contract)
+
+    let entry = concat("cancel|", to_string(listing_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(caller))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    _log(entry)
+    return true
+  }
+
+  fn buy_nft(listing_id: u128): bool {
+    require(listing_id < self.listing_count, "xmarket: bad listing id")
+    require(self.listing_status[listing_id] == 1, "xmarket: not active")
+    require(caller != self.listing_seller[listing_id], "xmarket: cannot buy own listing")
+
+    let price = self.listing_price[listing_id]
+    require(value >= price, "xmarket: insufficient payment")
+
+    let nr: u128 = self.reserve + price
+    require(nr >= self.reserve, "xmarket: reserve overflow")
+    self.reserve = nr
+    if value > price {
+      let rok: bool = transfer(caller, value - price)
+      require(rok, "xmarket: refund failed")
+    }
+
+    _settle(listing_id, caller)
+    return true
+  }
+
+  // =============================================================
+  // Offers
+  // =============================================================
+
+  fn make_offer(nft_contract: address, token_id: u128, duration_epochs: u128): u128 {
+    require(is_address(nft_contract) && nft_contract != 0, "xmarket: invalid contract")
+    require(value > 0, "xmarket: no value sent")
+    require(duration_epochs > 0 && duration_epochs <= MAX_OFFER_DURATION, "xmarket: bad duration")
+
+    let id: u128 = self.offer_count
+    self.offer_offerer[id]       = caller
+    self.offer_contract[id]      = nft_contract
+    self.offer_token_id[id]      = token_id
+    self.offer_is_collection[id] = 0
+    self.offer_amount[id]        = value
+    self.offer_expires[id]       = epoch + duration_epochs
+    self.offer_active[id]        = 1
+    self.offer_count += 1
+    let nor: u128 = self.offer_reserve + value
+    require(nor >= self.offer_reserve, "xmarket: offer reserve overflow")
+    self.offer_reserve = nor
+
+    let entry = concat("offer|", to_string(id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(caller))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(nft_contract))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(value))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    _log(entry)
+    return id
+  }
+
+  fn make_collection_offer(nft_contract: address, duration_epochs: u128): u128 {
+    require(is_address(nft_contract) && nft_contract != 0, "xmarket: invalid contract")
+    require(value > 0, "xmarket: no value sent")
+    require(duration_epochs > 0 && duration_epochs <= MAX_OFFER_DURATION, "xmarket: bad duration")
+
+    let id: u128 = self.offer_count
+    self.offer_offerer[id]       = caller
+    self.offer_contract[id]      = nft_contract
+    self.offer_token_id[id]      = 0
+    self.offer_is_collection[id] = 1
+    self.offer_amount[id]        = value
+    self.offer_expires[id]       = epoch + duration_epochs
+    self.offer_active[id]        = 1
+    self.offer_count += 1
+    let nor: u128 = self.offer_reserve + value
+    require(nor >= self.offer_reserve, "xmarket: offer reserve overflow")
+    self.offer_reserve = nor
+
+    let entry = concat("coffer|", to_string(id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(caller))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(nft_contract))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(value))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    _log(entry)
+    return id
+  }
+
+  fn cancel_offer(offer_id: u128): bool {
+    require(offer_id < self.offer_count, "xmarket: bad offer id")
+    require(self.offer_active[offer_id] == 1, "xmarket: not active")
+    require(caller == self.offer_offerer[offer_id], "xmarket: not offerer")
+
+    let amount = self.offer_amount[offer_id]
+    self.offer_active[offer_id] = 0
+    require(self.offer_reserve >= amount, "xmarket: offer reserve underflow")
+    self.offer_reserve -= amount
+    _credit(caller, amount)
+    return true
+  }
+
+  private fn _do_accept_offer(offer_id: u128, token_id: u128, seller: address) {
+    let nft_contract = self.offer_contract[offer_id]
+    let price        = self.offer_amount[offer_id]
+    let buyer        = self.offer_offerer[offer_id]
+
+    self.offer_active[offer_id] = 0
+    require(self.offer_reserve >= price, "xmarket: offer reserve underflow")
+    self.offer_reserve -= price
+
+    let sentinel = self.contract_token_listing[nft_contract][token_id]
+    if sentinel != 0 {
+      let lid: u128 = sentinel - 1
+      if self.listing_status[lid] == 1 {
+        self.listing_status[lid]                            = 2
+        self.contract_token_listing[nft_contract][token_id] = 0
+        _index_remove(lid, nft_contract)
+      }
+    }
+
+    let creator      = call(nft_contract, "creator_of", token_id)
+    let royalty_bps  = call(nft_contract, "royalty_of",  token_id)
+    let safe_royalty = royalty_bps
+    if safe_royalty > MAX_ROYALTY_BPS { safe_royalty = MAX_ROYALTY_BPS }
+    let fee        = price * MARKETPLACE_FEE_BPS / 10000
+    let royalty    = price * safe_royalty / 10000
+    require(fee + royalty <= price, "xmarket: fee+royalty exceed price")
+    let seller_cut = price - fee - royalty
+
+    _credit(seller, seller_cut)
+    _credit(creator, royalty)
+    let nfb: u128 = self.fee_balance + fee
+    require(nfb >= self.fee_balance, "xmarket: fee overflow")
+    self.fee_balance = nfb
+    let ntv: u128 = self.total_volume + price
+    require(ntv >= self.total_volume, "xmarket: volume overflow")
+    self.total_volume = ntv
+
+    let moved: bool = call(nft_contract, "transfer_from", seller, buyer, token_id)
+    require(moved, "xmarket: nft transfer failed")
+
+    let entry = concat("sale|", to_string(offer_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(buyer))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(seller))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(nft_contract))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(price))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    _log(entry)
+  }
+
+  fn accept_offer(offer_id: u128): bool {
+    require(offer_id < self.offer_count, "xmarket: bad offer id")
+    require(self.offer_active[offer_id] == 1, "xmarket: not active")
+    require(epoch <= self.offer_expires[offer_id], "xmarket: offer expired")
+    require(self.offer_is_collection[offer_id] == 0, "xmarket: use accept_collection_offer")
+
+    let token_id = self.offer_token_id[offer_id]
+    let nft_contract = self.offer_contract[offer_id]
+    let approved = call(nft_contract, "is_approved_or_owner", token_id, caller)
+    require(approved == 1, "xmarket: not approved or owner")
+
+    _do_accept_offer(offer_id, token_id, caller)
+    return true
+  }
+
+  fn accept_collection_offer(offer_id: u128, token_id: u128): bool {
+    require(offer_id < self.offer_count, "xmarket: bad offer id")
+    require(self.offer_active[offer_id] == 1, "xmarket: not active")
+    require(epoch <= self.offer_expires[offer_id], "xmarket: offer expired")
+    require(self.offer_is_collection[offer_id] == 1, "xmarket: not a collection offer")
+
+    let nft_contract = self.offer_contract[offer_id]
+    let approved = call(nft_contract, "is_approved_or_owner", token_id, caller)
+    require(approved == 1, "xmarket: not approved or owner")
+
+    _do_accept_offer(offer_id, token_id, caller)
+    return true
+  }
+
+  // =============================================================
+  // Proceeds / admin
+  // =============================================================
+
+  fn claim_proceeds(): u128 {
+    let amount = self.pending_proceeds[caller]
+    require(amount > 0, "xmarket: nothing to claim")
+    self.pending_proceeds[caller] = 0
+    let ok: bool = transfer(caller, amount)
+    require(ok, "xmarket: transfer failed")
+    return amount
+  }
+
+  fn withdraw_fees(): u128 {
+    only_owner()
+    let amount = self.fee_balance
+    require(amount > 0, "xmarket: no fees")
+    self.fee_balance = 0
+    let ok: bool = transfer(self.owner, amount)
+    require(ok, "xmarket: transfer failed")
+    return amount
+  }
+
+  fn transfer_ownership(new_owner: address): bool {
+    only_owner()
+    require(is_address(new_owner) && new_owner != 0, "xmarket: invalid address")
+    self.owner = new_owner
+    return true
+  }
+
+  // =============================================================
+  // Views: single item
+  // =============================================================
+
+  view fn get_listing(listing_id: u128): string {
+    require(listing_id < self.listing_count, "xmarket: bad listing id")
+    let out = to_string(listing_id)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.listing_seller[listing_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.listing_contract[listing_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.listing_token_id[listing_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.listing_price[listing_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.listing_status[listing_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.listing_epoch[listing_id]))
+    return out
+  }
+
+  view fn get_offer(offer_id: u128): string {
+    require(offer_id < self.offer_count, "xmarket: bad offer id")
+    let out = to_string(offer_id)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.offer_offerer[offer_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.offer_contract[offer_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.offer_token_id[offer_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.offer_is_collection[offer_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.offer_amount[offer_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.offer_expires[offer_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.offer_active[offer_id]))
+    return out
+  }
+
+  view fn get_token_listing(nft_contract: address, token_id: u128): u128 {
+    return self.contract_token_listing[nft_contract][token_id]
+  }
+
+  view fn get_pending_proceeds(addr: address): u128 {
+    return self.pending_proceeds[addr]
+  }
+
+  view fn get_listing_count():  u128 { return self.listing_count }
+  view fn get_offer_count():    u128 { return self.offer_count }
+  view fn get_active_count():   u128 { return self.active_count }
+  view fn get_total_volume():   u128 { return self.total_volume }
+  view fn get_fee_balance():    u128 { return self.fee_balance }
+  view fn get_reserve():        u128 { return self.reserve }
+  view fn get_offer_reserve():  u128 { return self.offer_reserve }
+  view fn get_owner():          address { return self.owner }
+
+  view fn get_market_info(): string {
+    let out = to_string(self.listing_count)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.offer_count))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.active_count))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.total_volume))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.fee_balance))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.event_log_count))
+    return out
+  }
+
+  // =============================================================
+  // Views: paginated (indexer-friendly)
+  // =============================================================
+
+  view fn get_listings_page(offset: u128, limit: u128): string {
+    let total = self.active_count
+    let out = to_string(total)
+    if total == 0 { return out }
+    let safe_limit = limit
+    if safe_limit > 100 { safe_limit = 100 }
+    let end = offset + safe_limit
+    if end > total { end = total }
+    if offset >= end { return out }
+    let n = end - offset
+    let i = 0
+    for i in 0..n {
+      let lid = self.active_ids[offset + i]
+      out = concat(out, "~")
+      out = concat(out, to_string(lid))
+      out = concat(out, "|")
+      out = concat(out, to_string(self.listing_seller[lid]))
+      out = concat(out, "|")
+      out = concat(out, to_string(self.listing_contract[lid]))
+      out = concat(out, "|")
+      out = concat(out, to_string(self.listing_token_id[lid]))
+      out = concat(out, "|")
+      out = concat(out, to_string(self.listing_price[lid]))
+      out = concat(out, "|")
+      out = concat(out, to_string(self.listing_epoch[lid]))
+    }
+    return out
+  }
+
+  view fn get_listings_for_collection(nft_contract: address, offset: u128, limit: u128): string {
+    let total = self.coll_count[nft_contract]
+    let out = to_string(total)
+    if total == 0 { return out }
+    let safe_limit = limit
+    if safe_limit > 100 { safe_limit = 100 }
+    let end = offset + safe_limit
+    if end > total { end = total }
+    if offset >= end { return out }
+    let n = end - offset
+    let i = 0
+    for i in 0..n {
+      let lid = self.coll_ids[nft_contract][offset + i]
+      out = concat(out, "~")
+      out = concat(out, to_string(lid))
+      out = concat(out, "|")
+      out = concat(out, to_string(self.listing_seller[lid]))
+      out = concat(out, "|")
+      out = concat(out, to_string(self.listing_token_id[lid]))
+      out = concat(out, "|")
+      out = concat(out, to_string(self.listing_price[lid]))
+      out = concat(out, "|")
+      out = concat(out, to_string(self.listing_epoch[lid]))
+    }
+    return out
+  }
+
+  view fn get_event_log(from: u128, count: u128): string {
+    let total = self.event_log_count
+    let out = to_string(total)
+    if total == 0 { return out }
+    let safe_count = count
+    if safe_count > 50 { safe_count = 50 }
+    let end = from + safe_count
+    if end > total { end = total }
+    if from >= end { return out }
+    let n = end - from
+    let i = 0
+    for i in 0..n {
+      out = concat(out, "~")
+      out = concat(out, self.event_log[from + i])
+    }
+    return out
+  }
+}
+
