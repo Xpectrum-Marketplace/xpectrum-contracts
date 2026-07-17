@@ -1,20 +1,25 @@
-// Xmarket v3 >> Xpectrum secondary marketplace
-// works with any XNS-1 compatible contract. list, buy, cancel, offers, royalties enforced.
-// collection offers use offer_is_collection flag (replaces token_id == -1 from v2).
+// Xmarket v3 >> Xpectrum secondary marketplace.
+// Works with any XNS-1 compatible contract: list, buy, cancel, offers, royalties enforced.
+// The standard-mode lane also trades plain ERC-721 style contracts, gated on owner_of + get_approved.
+// Collection offers carry a quantity; single-token offers are quantity 1 internally.
 //
 // get_listing(id)    >> listing_id | seller | nft_contract | token_id | price | status | listed_epoch
-// get_offer(id)      >> offer_id | offerer | nft_contract | token_id | offer_is_collection | amount | expires_epoch | active
-// get_market_info()  >> listing_count | offer_count | total_volume | fee_balance | reserve | offer_reserve
+// get_offer(id)      >> offer_id | offerer | nft_contract | token_id | is_collection | amount | expires_epoch | active | quantity
+// get_market_info()  >> listing_count | offer_count | active_count | total_volume | fee_balance | event_log_count
 //
-// formally verified (aml_safety_report_v1, errors: 0, warnings: 0)
-// bytecode_hash:     ed809dada529da0c140f6567af7a1b7f600c74e270867ca108e170db2e0da725
-// verification_hash: f80048b597fb5f5c2df0314d6f1daaa453e61dbf584ff724fdb35b7b6ad38d2c
+// events: list, sale, cancel, offer, coffer, osale, cancel_offer, stdmode.
+// Added since v3.1: the standard-mode lane, quantity collection offers, the osale offer-accept event, the cancel_offer event, and set_standard_mode / get_standard_mode / get_offer_quantity.
+//
+// Formally verified (aml_safety_report_v1, errors: 0, warnings: 0).
+// bytecode_hash: 943cbd42f67c2d704c1ec7b1f01facc1a59024a4ce79db7afc8686baeec60e66
+// Full report in verification/Xmarket_v3_verification.json.
 
 contract Xmarket_v3 {
 
   const MARKETPLACE_FEE_BPS: u128 = 250
   const MAX_ROYALTY_BPS:     u128 = 1000
   const MAX_OFFER_DURATION:  u128 = 518400
+  const MAX_OFFER_QUANTITY:  u128 = 100
 
   state {
     owner:         address
@@ -38,9 +43,14 @@ contract Xmarket_v3 {
     offer_contract:      map[u128]address
     offer_token_id:      map[u128]u128
     offer_is_collection: map[u128]u128
+    // per-UNIT price; total escrow = offer_amount * offer_quantity
     offer_amount:        map[u128]u128
     offer_expires:       map[u128]u128
     offer_active:        map[u128]u128
+    // remaining units (single-token offers: 1)
+    offer_quantity:      map[u128]u128
+
+    standard_mode: map[address]u128
 
     // (listing_id + 1) sentinel; 0 = no active listing
     contract_token_listing: map[address]map[u128]u128
@@ -116,6 +126,26 @@ contract Xmarket_v3 {
     self.pending_proceeds[recipient] = np
   }
 
+  // Reverts unless addr may move token_id; returns 1 otherwise.
+  private fn _check_approved_or_owner(nft_contract: address, token_id: u128, addr: address): u128 {
+    if self.standard_mode[nft_contract] == 1 {
+      let current_owner = call(nft_contract, "owner_of", token_id)
+      if addr == current_owner { return 1 }
+      let approved_addr = call(nft_contract, "get_approved", token_id)
+      require(addr == approved_addr, "xmarket: not approved or owner")
+      return 1
+    }
+    let approved = call(nft_contract, "is_approved_or_owner", token_id, addr)
+    require(approved == 1, "xmarket: not approved or owner")
+    return 1
+  }
+
+  private fn _check_is_owner(nft_contract: address, token_id: u128, addr: address): u128 {
+    let current_owner = call(nft_contract, "owner_of", token_id)
+    require(addr == current_owner, "xmarket: not token owner")
+    return 1
+  }
+
   private fn _settle(listing_id: u128, buyer: address) {
     let nft_contract = self.listing_contract[listing_id]
     let token_id     = self.listing_token_id[listing_id]
@@ -176,8 +206,7 @@ contract Xmarket_v3 {
     require(price > 0, "xmarket: price > 0 required")
     require(self.contract_token_listing[nft_contract][token_id] == 0, "xmarket: already listed")
 
-    let approved = call(nft_contract, "is_approved_or_owner", token_id, caller)
-    require(approved == 1, "xmarket: not approved or owner")
+    let ok = _check_approved_or_owner(nft_contract, token_id, caller)
 
     let id: u128 = self.listing_count
     self.listing_seller[id]   = caller
@@ -264,6 +293,7 @@ contract Xmarket_v3 {
     self.offer_amount[id]        = value
     self.offer_expires[id]       = epoch + duration_epochs
     self.offer_active[id]        = 1
+    self.offer_quantity[id]      = 1
     self.offer_count += 1
     let nor: u128 = self.offer_reserve + value
     require(nor >= self.offer_reserve, "xmarket: offer reserve overflow")
@@ -284,19 +314,26 @@ contract Xmarket_v3 {
     return id
   }
 
-  fn make_collection_offer(nft_contract: address, duration_epochs: u128): u128 {
+  // quantity units at value/quantity OCT each; total escrow = value.
+  // value must divide evenly so unit_price * quantity == value exactly.
+  fn make_collection_offer(nft_contract: address, duration_epochs: u128, quantity: u128): u128 {
     require(is_address(nft_contract) && nft_contract != 0, "xmarket: invalid contract")
     require(value > 0, "xmarket: no value sent")
     require(duration_epochs > 0 && duration_epochs <= MAX_OFFER_DURATION, "xmarket: bad duration")
+    require(quantity > 0 && quantity <= MAX_OFFER_QUANTITY, "xmarket: bad quantity")
+    let unit_price: u128 = value / quantity
+    require(unit_price > 0, "xmarket: unit price is zero")
+    require(unit_price * quantity == value, "xmarket: value not divisible by quantity")
 
     let id: u128 = self.offer_count
     self.offer_offerer[id]       = caller
     self.offer_contract[id]      = nft_contract
     self.offer_token_id[id]      = 0
     self.offer_is_collection[id] = 1
-    self.offer_amount[id]        = value
+    self.offer_amount[id]        = unit_price
     self.offer_expires[id]       = epoch + duration_epochs
     self.offer_active[id]        = 1
+    self.offer_quantity[id]      = quantity
     self.offer_count += 1
     let nor: u128 = self.offer_reserve + value
     require(nor >= self.offer_reserve, "xmarket: offer reserve overflow")
@@ -308,7 +345,9 @@ contract Xmarket_v3 {
     entry = concat(entry, "|")
     entry = concat(entry, to_string(nft_contract))
     entry = concat(entry, "|")
-    entry = concat(entry, to_string(value))
+    entry = concat(entry, to_string(unit_price))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(quantity))
     entry = concat(entry, "|")
     entry = concat(entry, to_string(epoch))
     _log(entry)
@@ -320,11 +359,22 @@ contract Xmarket_v3 {
     require(self.offer_active[offer_id] == 1, "xmarket: not active")
     require(caller == self.offer_offerer[offer_id], "xmarket: not offerer")
 
-    let amount = self.offer_amount[offer_id]
-    self.offer_active[offer_id] = 0
+    // refund the remaining escrow: unit price * units not yet accepted.
+    let remaining: u128 = self.offer_quantity[offer_id]
+    require(remaining > 0, "xmarket: offer exhausted")
+    let amount: u128 = self.offer_amount[offer_id] * remaining
+    self.offer_active[offer_id]   = 0
+    self.offer_quantity[offer_id] = 0
     require(self.offer_reserve >= amount, "xmarket: offer reserve underflow")
     self.offer_reserve -= amount
     _credit(caller, amount)
+
+    let entry = concat("cancel_offer|", to_string(offer_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(caller))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    _log(entry)
     return true
   }
 
@@ -332,8 +382,14 @@ contract Xmarket_v3 {
     let nft_contract = self.offer_contract[offer_id]
     let price        = self.offer_amount[offer_id]
     let buyer        = self.offer_offerer[offer_id]
+    require(seller != buyer, "xmarket: cannot accept own offer")
 
-    self.offer_active[offer_id] = 0
+    // settle one unit: decrement remaining, deactivate on the last one.
+    let remaining: u128 = self.offer_quantity[offer_id]
+    require(remaining >= 1, "xmarket: offer exhausted")
+    let remaining_after: u128 = remaining - 1
+    self.offer_quantity[offer_id] = remaining_after
+    if remaining == 1 { self.offer_active[offer_id] = 0 }
     require(self.offer_reserve >= price, "xmarket: offer reserve underflow")
     self.offer_reserve -= price
 
@@ -341,9 +397,15 @@ contract Xmarket_v3 {
     if sentinel != 0 {
       let lid: u128 = sentinel - 1
       if self.listing_status[lid] == 1 {
-        self.listing_status[lid]                            = 2
+        self.listing_status[lid]                            = 0
         self.contract_token_listing[nft_contract][token_id] = 0
         _index_remove(lid, nft_contract)
+        let centry = concat("cancel|", to_string(lid))
+        centry = concat(centry, "|")
+        centry = concat(centry, to_string(seller))
+        centry = concat(centry, "|")
+        centry = concat(centry, to_string(epoch))
+        _log(centry)
       }
     }
 
@@ -368,7 +430,8 @@ contract Xmarket_v3 {
     let moved: bool = call(nft_contract, "transfer_from", seller, buyer, token_id)
     require(moved, "xmarket: nft transfer failed")
 
-    let entry = concat("sale|", to_string(offer_id))
+    // Distinct type: sale| carries LISTING ids, osale| carries OFFER ids.
+    let entry = concat("osale|", to_string(offer_id))
     entry = concat(entry, "|")
     entry = concat(entry, to_string(buyer))
     entry = concat(entry, "|")
@@ -379,6 +442,8 @@ contract Xmarket_v3 {
     entry = concat(entry, to_string(token_id))
     entry = concat(entry, "|")
     entry = concat(entry, to_string(price))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(remaining_after))
     entry = concat(entry, "|")
     entry = concat(entry, to_string(epoch))
     _log(entry)
@@ -392,8 +457,7 @@ contract Xmarket_v3 {
 
     let token_id = self.offer_token_id[offer_id]
     let nft_contract = self.offer_contract[offer_id]
-    let approved = call(nft_contract, "is_approved_or_owner", token_id, caller)
-    require(approved == 1, "xmarket: not approved or owner")
+    let ok = _check_is_owner(nft_contract, token_id, caller)
 
     _do_accept_offer(offer_id, token_id, caller)
     return true
@@ -406,8 +470,7 @@ contract Xmarket_v3 {
     require(self.offer_is_collection[offer_id] == 1, "xmarket: not a collection offer")
 
     let nft_contract = self.offer_contract[offer_id]
-    let approved = call(nft_contract, "is_approved_or_owner", token_id, caller)
-    require(approved == 1, "xmarket: not approved or owner")
+    let ok = _check_is_owner(nft_contract, token_id, caller)
 
     _do_accept_offer(offer_id, token_id, caller)
     return true
@@ -440,6 +503,22 @@ contract Xmarket_v3 {
     only_owner()
     require(is_address(new_owner) && new_owner != 0, "xmarket: invalid address")
     self.owner = new_owner
+    return true
+  }
+
+  // Flip a collection into (1) or out of (0) standard mode (owner-only).
+  fn set_standard_mode(nft_contract: address, mode: u128): bool {
+    only_owner()
+    require(is_address(nft_contract) && nft_contract != 0, "xmarket: invalid contract")
+    require(mode <= 1, "xmarket: mode is 0 or 1")
+    self.standard_mode[nft_contract] = mode
+
+    let entry = concat("stdmode|", to_string(nft_contract))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(mode))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    _log(entry)
     return true
   }
 
@@ -482,7 +561,18 @@ contract Xmarket_v3 {
     out = concat(out, to_string(self.offer_expires[offer_id]))
     out = concat(out, "|")
     out = concat(out, to_string(self.offer_active[offer_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.offer_quantity[offer_id]))
     return out
+  }
+
+  view fn get_offer_quantity(offer_id: u128): u128 {
+    require(offer_id < self.offer_count, "xmarket: bad offer id")
+    return self.offer_quantity[offer_id]
+  }
+
+  view fn get_standard_mode(nft_contract: address): u128 {
+    return self.standard_mode[nft_contract]
   }
 
   view fn get_token_listing(nft_contract: address, token_id: u128): u128 {

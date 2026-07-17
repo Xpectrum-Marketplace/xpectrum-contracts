@@ -1,742 +1,818 @@
 {
- "verification": {
-  "schema": "aml_safety_report_v1",
-  "engine": "aml_ast_verifier",
-  "proof_model": "formal/coq/aml_value_safety_model.v",
-  "proof_gate": "scripts/check_aml_formal.sh",
-  "program_name": "Xmarket_v3",
-  "verified": true,
-  "safety": "safe",
-  "errors": 0,
-  "warnings": 0,
-  "trace": [
-   {
-    "code": "signed_value_storage",
-    "title": "value-like storage must not use signed int",
-    "status": "pass",
-    "severity": "error",
-    "findings": 0
-   },
-   {
-    "code": "signed_value_parameter",
-    "title": "value-moving public parameters must not use signed int",
-    "status": "pass",
-    "severity": "error",
-    "findings": 0
-   },
-   {
-    "code": "signed_value_flow",
-    "title": "signed values must not flow into value-like storage writes",
-    "status": "pass",
-    "severity": "error",
-    "findings": 0
-   },
-   {
-    "code": "unsigned_arithmetic_range_not_proven",
-    "title": "unsigned arithmetic writes must prove range safety",
-    "status": "pass",
-    "severity": "error",
-    "findings": 0
-   },
-   {
-    "code": "supply_invariant_unproven",
-    "title": "balance and total supply writes should preserve conservation",
-    "status": "pass",
-    "severity": "warning",
-    "findings": 0
-   },
-   {
-    "code": "unsigned_parameter_without_positive_guard",
-    "title": "unsigned value parameters should reject zero unless zero is meaningful",
-    "status": "pass",
-    "severity": "warning",
-    "findings": 0
-   },
-   {
-    "code": "unchecked_transfer_result",
-    "title": "native transfer result should be checked",
-    "status": "pass",
-    "severity": "warning",
-    "findings": 0
-   }
-  ],
-  "function_summaries": [
-   {
-    "name": "only_owner",
-    "visibility": "private",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "_index_add",
-    "visibility": "private",
-    "direct_calls": [],
-    "direct_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos"
+  "verification": {
+    "schema": "aml_safety_report_v1",
+    "engine": "aml_ast_verifier",
+    "proof_model": "formal/coq/aml_value_safety_model.v",
+    "proof_gate": "scripts/check_aml_formal.sh",
+    "program_name": "Xmarket_v3",
+    "verified": true,
+    "safety": "safe",
+    "errors": 0,
+    "warnings": 0,
+    "trace": [
+      {
+        "code": "signed_value_storage",
+        "title": "value-like storage must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_parameter",
+        "title": "value-moving public parameters must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_flow",
+        "title": "signed values must not flow into value-like storage writes",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_arithmetic_range_not_proven",
+        "title": "unsigned arithmetic writes must prove range safety",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "supply_invariant_unproven",
+        "title": "balance and total supply writes should preserve conservation",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_parameter_without_positive_guard",
+        "title": "unsigned value parameters should reject zero unless zero is meaningful",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      },
+      {
+        "code": "unchecked_transfer_result",
+        "title": "native transfer result should be checked",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      }
     ],
-    "transitive_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos"
+    "function_summaries": [
+      {
+        "name": "only_owner",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_index_add",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos"
+        ],
+        "transitive_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_index_remove",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos"
+        ],
+        "transitive_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_log",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_credit",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "pending_proceeds"
+        ],
+        "transitive_writes": [
+          "pending_proceeds"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_check_approved_or_owner",
+        "visibility": "private",
+        "direct_calls": [
+          "call"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_check_is_owner",
+        "visibility": "private",
+        "direct_calls": [
+          "call"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_settle",
+        "visibility": "private",
+        "direct_calls": [
+          "_credit",
+          "_index_remove",
+          "_log",
+          "call",
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "contract_token_listing",
+          "fee_balance",
+          "listing_status",
+          "reserve",
+          "total_volume"
+        ],
+        "transitive_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos",
+          "contract_token_listing",
+          "event_log",
+          "event_log_count",
+          "fee_balance",
+          "listing_status",
+          "pending_proceeds",
+          "reserve",
+          "total_volume"
+        ],
+        "value_writes": [
+          "fee_balance",
+          "reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "list_nft",
+        "visibility": "public",
+        "direct_calls": [
+          "_check_approved_or_owner",
+          "_index_add",
+          "_log",
+          "concat",
+          "is_address",
+          "to_string"
+        ],
+        "direct_writes": [
+          "contract_token_listing",
+          "listing_contract",
+          "listing_count",
+          "listing_epoch",
+          "listing_price",
+          "listing_seller",
+          "listing_status",
+          "listing_token_id"
+        ],
+        "transitive_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos",
+          "contract_token_listing",
+          "event_log",
+          "event_log_count",
+          "listing_contract",
+          "listing_count",
+          "listing_epoch",
+          "listing_price",
+          "listing_seller",
+          "listing_status",
+          "listing_token_id"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "cancel_listing",
+        "visibility": "public",
+        "direct_calls": [
+          "_index_remove",
+          "_log",
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "contract_token_listing",
+          "listing_status"
+        ],
+        "transitive_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos",
+          "contract_token_listing",
+          "event_log",
+          "event_log_count",
+          "listing_status"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "buy_nft",
+        "visibility": "public",
+        "direct_calls": [
+          "_settle",
+          "transfer"
+        ],
+        "direct_writes": [
+          "reserve"
+        ],
+        "transitive_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos",
+          "contract_token_listing",
+          "event_log",
+          "event_log_count",
+          "fee_balance",
+          "listing_status",
+          "pending_proceeds",
+          "reserve",
+          "total_volume"
+        ],
+        "value_writes": [
+          "fee_balance",
+          "reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "make_offer",
+        "visibility": "public",
+        "direct_calls": [
+          "_log",
+          "concat",
+          "is_address",
+          "to_string"
+        ],
+        "direct_writes": [
+          "offer_active",
+          "offer_amount",
+          "offer_contract",
+          "offer_count",
+          "offer_expires",
+          "offer_is_collection",
+          "offer_offerer",
+          "offer_quantity",
+          "offer_reserve",
+          "offer_token_id"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count",
+          "offer_active",
+          "offer_amount",
+          "offer_contract",
+          "offer_count",
+          "offer_expires",
+          "offer_is_collection",
+          "offer_offerer",
+          "offer_quantity",
+          "offer_reserve",
+          "offer_token_id"
+        ],
+        "value_writes": [
+          "offer_reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "make_collection_offer",
+        "visibility": "public",
+        "direct_calls": [
+          "_log",
+          "concat",
+          "is_address",
+          "to_string"
+        ],
+        "direct_writes": [
+          "offer_active",
+          "offer_amount",
+          "offer_contract",
+          "offer_count",
+          "offer_expires",
+          "offer_is_collection",
+          "offer_offerer",
+          "offer_quantity",
+          "offer_reserve",
+          "offer_token_id"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count",
+          "offer_active",
+          "offer_amount",
+          "offer_contract",
+          "offer_count",
+          "offer_expires",
+          "offer_is_collection",
+          "offer_offerer",
+          "offer_quantity",
+          "offer_reserve",
+          "offer_token_id"
+        ],
+        "value_writes": [
+          "offer_reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "cancel_offer",
+        "visibility": "public",
+        "direct_calls": [
+          "_credit",
+          "_log",
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "offer_active",
+          "offer_quantity",
+          "offer_reserve"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count",
+          "offer_active",
+          "offer_quantity",
+          "offer_reserve",
+          "pending_proceeds"
+        ],
+        "value_writes": [
+          "offer_reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "_do_accept_offer",
+        "visibility": "private",
+        "direct_calls": [
+          "_credit",
+          "_index_remove",
+          "_log",
+          "call",
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "contract_token_listing",
+          "fee_balance",
+          "listing_status",
+          "offer_active",
+          "offer_quantity",
+          "offer_reserve",
+          "total_volume"
+        ],
+        "transitive_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos",
+          "contract_token_listing",
+          "event_log",
+          "event_log_count",
+          "fee_balance",
+          "listing_status",
+          "offer_active",
+          "offer_quantity",
+          "offer_reserve",
+          "pending_proceeds",
+          "total_volume"
+        ],
+        "value_writes": [
+          "fee_balance",
+          "offer_reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "accept_offer",
+        "visibility": "public",
+        "direct_calls": [
+          "_check_is_owner",
+          "_do_accept_offer"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos",
+          "contract_token_listing",
+          "event_log",
+          "event_log_count",
+          "fee_balance",
+          "listing_status",
+          "offer_active",
+          "offer_quantity",
+          "offer_reserve",
+          "pending_proceeds",
+          "total_volume"
+        ],
+        "value_writes": [
+          "fee_balance",
+          "offer_reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "accept_collection_offer",
+        "visibility": "public",
+        "direct_calls": [
+          "_check_is_owner",
+          "_do_accept_offer"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [
+          "active_count",
+          "active_ids",
+          "active_pos",
+          "coll_count",
+          "coll_ids",
+          "coll_pos",
+          "contract_token_listing",
+          "event_log",
+          "event_log_count",
+          "fee_balance",
+          "listing_status",
+          "offer_active",
+          "offer_quantity",
+          "offer_reserve",
+          "pending_proceeds",
+          "total_volume"
+        ],
+        "value_writes": [
+          "fee_balance",
+          "offer_reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "claim_proceeds",
+        "visibility": "public",
+        "direct_calls": [
+          "transfer"
+        ],
+        "direct_writes": [
+          "pending_proceeds"
+        ],
+        "transitive_writes": [
+          "pending_proceeds"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "withdraw_fees",
+        "visibility": "public",
+        "direct_calls": [
+          "only_owner",
+          "transfer"
+        ],
+        "direct_writes": [
+          "fee_balance"
+        ],
+        "transitive_writes": [
+          "fee_balance"
+        ],
+        "value_writes": [
+          "fee_balance"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "transfer_ownership",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address",
+          "only_owner"
+        ],
+        "direct_writes": [
+          "owner"
+        ],
+        "transitive_writes": [
+          "owner"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_standard_mode",
+        "visibility": "public",
+        "direct_calls": [
+          "_log",
+          "concat",
+          "is_address",
+          "only_owner",
+          "to_string"
+        ],
+        "direct_writes": [
+          "standard_mode"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count",
+          "standard_mode"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_listing",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_offer",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_offer_quantity",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_standard_mode",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_token_listing",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_pending_proceeds",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_listing_count",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_offer_count",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_active_count",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_total_volume",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_fee_balance",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_reserve",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_offer_reserve",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_owner",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_market_info",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_listings_page",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_listings_for_collection",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_event_log",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "constructor",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [
+          "owner"
+        ],
+        "transitive_writes": [
+          "owner"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      }
     ],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "_index_remove",
-    "visibility": "private",
-    "direct_calls": [],
-    "direct_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos"
+    "invariants": [
+      {
+        "code": "supply_balance_conservation",
+        "kind": "derived",
+        "status": "not_applicable",
+        "expression": null,
+        "message": "program does not expose both balance and supply storage",
+        "fields": [
+          "fee_balance"
+        ],
+        "functions": []
+      }
     ],
-    "transitive_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos"
-    ],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "_log",
-    "visibility": "private",
-    "direct_calls": [],
-    "direct_writes": [
-     "event_log",
-     "event_log_count"
-    ],
-    "transitive_writes": [
-     "event_log",
-     "event_log_count"
-    ],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "_credit",
-    "visibility": "private",
-    "direct_calls": [],
-    "direct_writes": [
-     "pending_proceeds"
-    ],
-    "transitive_writes": [
-     "pending_proceeds"
-    ],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "_settle",
-    "visibility": "private",
-    "direct_calls": [
-     "_credit",
-     "_index_remove",
-     "_log",
-     "call",
-     "concat",
-     "to_string"
-    ],
-    "direct_writes": [
-     "contract_token_listing",
-     "fee_balance",
-     "listing_status",
-     "reserve",
-     "total_volume"
-    ],
-    "transitive_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos",
-     "contract_token_listing",
-     "event_log",
-     "event_log_count",
-     "fee_balance",
-     "listing_status",
-     "pending_proceeds",
-     "reserve",
-     "total_volume"
-    ],
-    "value_writes": [
-     "fee_balance",
-     "reserve"
-    ],
-    "signed_params": []
-   },
-   {
-    "name": "list_nft",
-    "visibility": "public",
-    "direct_calls": [
-     "_index_add",
-     "_log",
-     "call",
-     "concat",
-     "is_address",
-     "to_string"
-    ],
-    "direct_writes": [
-     "contract_token_listing",
-     "listing_contract",
-     "listing_count",
-     "listing_epoch",
-     "listing_price",
-     "listing_seller",
-     "listing_status",
-     "listing_token_id"
-    ],
-    "transitive_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos",
-     "contract_token_listing",
-     "event_log",
-     "event_log_count",
-     "listing_contract",
-     "listing_count",
-     "listing_epoch",
-     "listing_price",
-     "listing_seller",
-     "listing_status",
-     "listing_token_id"
-    ],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "cancel_listing",
-    "visibility": "public",
-    "direct_calls": [
-     "_index_remove",
-     "_log",
-     "concat",
-     "to_string"
-    ],
-    "direct_writes": [
-     "contract_token_listing",
-     "listing_status"
-    ],
-    "transitive_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos",
-     "contract_token_listing",
-     "event_log",
-     "event_log_count",
-     "listing_status"
-    ],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "buy_nft",
-    "visibility": "public",
-    "direct_calls": [
-     "_settle",
-     "transfer"
-    ],
-    "direct_writes": [
-     "reserve"
-    ],
-    "transitive_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos",
-     "contract_token_listing",
-     "event_log",
-     "event_log_count",
-     "fee_balance",
-     "listing_status",
-     "pending_proceeds",
-     "reserve",
-     "total_volume"
-    ],
-    "value_writes": [
-     "fee_balance",
-     "reserve"
-    ],
-    "signed_params": []
-   },
-   {
-    "name": "make_offer",
-    "visibility": "public",
-    "direct_calls": [
-     "_log",
-     "concat",
-     "is_address",
-     "to_string"
-    ],
-    "direct_writes": [
-     "offer_active",
-     "offer_amount",
-     "offer_contract",
-     "offer_count",
-     "offer_expires",
-     "offer_is_collection",
-     "offer_offerer",
-     "offer_reserve",
-     "offer_token_id"
-    ],
-    "transitive_writes": [
-     "event_log",
-     "event_log_count",
-     "offer_active",
-     "offer_amount",
-     "offer_contract",
-     "offer_count",
-     "offer_expires",
-     "offer_is_collection",
-     "offer_offerer",
-     "offer_reserve",
-     "offer_token_id"
-    ],
-    "value_writes": [
-     "offer_reserve"
-    ],
-    "signed_params": []
-   },
-   {
-    "name": "make_collection_offer",
-    "visibility": "public",
-    "direct_calls": [
-     "_log",
-     "concat",
-     "is_address",
-     "to_string"
-    ],
-    "direct_writes": [
-     "offer_active",
-     "offer_amount",
-     "offer_contract",
-     "offer_count",
-     "offer_expires",
-     "offer_is_collection",
-     "offer_offerer",
-     "offer_reserve",
-     "offer_token_id"
-    ],
-    "transitive_writes": [
-     "event_log",
-     "event_log_count",
-     "offer_active",
-     "offer_amount",
-     "offer_contract",
-     "offer_count",
-     "offer_expires",
-     "offer_is_collection",
-     "offer_offerer",
-     "offer_reserve",
-     "offer_token_id"
-    ],
-    "value_writes": [
-     "offer_reserve"
-    ],
-    "signed_params": []
-   },
-   {
-    "name": "cancel_offer",
-    "visibility": "public",
-    "direct_calls": [
-     "_credit"
-    ],
-    "direct_writes": [
-     "offer_active",
-     "offer_reserve"
-    ],
-    "transitive_writes": [
-     "offer_active",
-     "offer_reserve",
-     "pending_proceeds"
-    ],
-    "value_writes": [
-     "offer_reserve"
-    ],
-    "signed_params": []
-   },
-   {
-    "name": "_do_accept_offer",
-    "visibility": "private",
-    "direct_calls": [
-     "_credit",
-     "_index_remove",
-     "_log",
-     "call",
-     "concat",
-     "to_string"
-    ],
-    "direct_writes": [
-     "contract_token_listing",
-     "fee_balance",
-     "listing_status",
-     "offer_active",
-     "offer_reserve",
-     "total_volume"
-    ],
-    "transitive_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos",
-     "contract_token_listing",
-     "event_log",
-     "event_log_count",
-     "fee_balance",
-     "listing_status",
-     "offer_active",
-     "offer_reserve",
-     "pending_proceeds",
-     "total_volume"
-    ],
-    "value_writes": [
-     "fee_balance",
-     "offer_reserve"
-    ],
-    "signed_params": []
-   },
-   {
-    "name": "accept_offer",
-    "visibility": "public",
-    "direct_calls": [
-     "_do_accept_offer",
-     "call"
-    ],
-    "direct_writes": [],
-    "transitive_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos",
-     "contract_token_listing",
-     "event_log",
-     "event_log_count",
-     "fee_balance",
-     "listing_status",
-     "offer_active",
-     "offer_reserve",
-     "pending_proceeds",
-     "total_volume"
-    ],
-    "value_writes": [
-     "fee_balance",
-     "offer_reserve"
-    ],
-    "signed_params": []
-   },
-   {
-    "name": "accept_collection_offer",
-    "visibility": "public",
-    "direct_calls": [
-     "_do_accept_offer",
-     "call"
-    ],
-    "direct_writes": [],
-    "transitive_writes": [
-     "active_count",
-     "active_ids",
-     "active_pos",
-     "coll_count",
-     "coll_ids",
-     "coll_pos",
-     "contract_token_listing",
-     "event_log",
-     "event_log_count",
-     "fee_balance",
-     "listing_status",
-     "offer_active",
-     "offer_reserve",
-     "pending_proceeds",
-     "total_volume"
-    ],
-    "value_writes": [
-     "fee_balance",
-     "offer_reserve"
-    ],
-    "signed_params": []
-   },
-   {
-    "name": "claim_proceeds",
-    "visibility": "public",
-    "direct_calls": [
-     "transfer"
-    ],
-    "direct_writes": [
-     "pending_proceeds"
-    ],
-    "transitive_writes": [
-     "pending_proceeds"
-    ],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "withdraw_fees",
-    "visibility": "public",
-    "direct_calls": [
-     "only_owner",
-     "transfer"
-    ],
-    "direct_writes": [
-     "fee_balance"
-    ],
-    "transitive_writes": [
-     "fee_balance"
-    ],
-    "value_writes": [
-     "fee_balance"
-    ],
-    "signed_params": []
-   },
-   {
-    "name": "transfer_ownership",
-    "visibility": "public",
-    "direct_calls": [
-     "is_address",
-     "only_owner"
-    ],
-    "direct_writes": [
-     "owner"
-    ],
-    "transitive_writes": [
-     "owner"
-    ],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_listing",
-    "visibility": "public",
-    "direct_calls": [
-     "concat",
-     "to_string"
-    ],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_offer",
-    "visibility": "public",
-    "direct_calls": [
-     "concat",
-     "to_string"
-    ],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_token_listing",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_pending_proceeds",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_listing_count",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_offer_count",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_active_count",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_total_volume",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_fee_balance",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_reserve",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_offer_reserve",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_owner",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_market_info",
-    "visibility": "public",
-    "direct_calls": [
-     "concat",
-     "to_string"
-    ],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_listings_page",
-    "visibility": "public",
-    "direct_calls": [
-     "concat",
-     "to_string"
-    ],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_listings_for_collection",
-    "visibility": "public",
-    "direct_calls": [
-     "concat",
-     "to_string"
-    ],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "get_event_log",
-    "visibility": "public",
-    "direct_calls": [
-     "concat",
-     "to_string"
-    ],
-    "direct_writes": [],
-    "transitive_writes": [],
-    "value_writes": [],
-    "signed_params": []
-   },
-   {
-    "name": "constructor",
-    "visibility": "public",
-    "direct_calls": [],
-    "direct_writes": [
-     "owner"
-    ],
-    "transitive_writes": [
-     "owner"
-    ],
-    "value_writes": [],
-    "signed_params": []
-   }
-  ],
-  "invariants": [
-   {
-    "code": "supply_balance_conservation",
-    "kind": "derived",
-    "status": "not_applicable",
-    "expression": null,
-    "message": "program does not expose both balance and supply storage",
-    "fields": [
-     "fee_balance"
-    ],
-    "functions": []
-   }
-  ],
-  "findings": []
- },
- "certificate": {
-  "schema": "aml_bytecode_certificate_v1",
-  "compiler": "octra_aml",
-  "compiler_version": "1.0 Rehovot",
-  "verification_schema": "aml_safety_report_v1",
-  "source_mode": "single",
-  "source_hash": "c2fb3019f268c32d0eabb60ab029eb3eaaf33ba94dfbc8a7af02274903ec9432",
-  "bytecode_hash": "ed809dada529da0c140f6567af7a1b7f600c74e270867ca108e170db2e0da725",
-  "verification_hash": "f80048b597fb5f5c2df0314d6f1daaa453e61dbf584ff724fdb35b7b6ad38d2c"
- },
- "size": 18936,
- "instructions": 4031,
- "version": "1.0 Rehovot"
+    "findings": []
+  },
+  "certificate": {
+    "schema": "aml_bytecode_certificate_v1",
+    "compiler": "octra_aml",
+    "compiler_version": "1.0 Rehovot",
+    "verification_schema": "aml_safety_report_v1",
+    "source_mode": "single",
+    "source_hash": "461ebbc95533ae496cc8451ccfd676fa2930e8ffdf323792bcbb8f8b8c643f53",
+    "bytecode_hash": "943cbd42f67c2d704c1ec7b1f01facc1a59024a4ce79db7afc8686baeec60e66",
+    "verification_hash": "adb32db008ab6ff90df397a56c9beb56919c0c38739bced0933586c1f52e7014"
+  },
+  "size": 21440,
+  "instructions": 4543,
+  "version": "1.0 Rehovot"
 }
