@@ -1,0 +1,474 @@
+// XNS-1: the Xpectrum NFT standard, rev 4.
+// Token ids are 0-indexed, so the first mint is id 0.
+// next_id only counts up. Live supply is next_id - burned_count, derived on read rather than stored.
+// Burned tokens have owner 0. Transfers refuse to == 0, so that state means burned and nothing else.
+// metadata_uri should be oct://[circle_id]/[token_id].json per metadata-standard-v1.
+//
+// get_token_info >> id | owner | creator | name | royalty_bps | minted_epoch | uri
+// get_token_circle_info >> token_id | resource_id | uri | access | active | version
+// get_contract_info >> name | symbol | total_supply | owner | total_minted | burned | events
+
+contract XNS1 {
+
+  event Minted(token_id: u128, owner: address, creator: address)
+  event Transferred(token_id: u128, from: address, to: address)
+  event Burned(token_id: u128, owner: address, total_supply: u128)
+  event Approved(token_id: u128, approved: address)
+  event ApprovalRevoked(token_id: u128)
+  event OperatorSet(owner: address, operator: address, approved: u128)
+  event OwnershipTransferred(old_owner: address, new_owner: address)
+  event ProvenanceHashSet(hash: string)
+  event CircleResourceSet(token_id: u128, resource_id: u128, uri: string, access: string)
+  event CircleResourceCleared(token_id: u128, resource_id: u128)
+
+  const MAX_ROYALTY_BPS: u128 = 1000
+
+  state {
+    owner: address
+    name: string
+    symbol: string
+    next_id: u128
+    burned_count: u128
+    provenance_hash: string
+    token_owner: map[u128]address
+    token_creator: map[u128]address
+    token_uri_of: map[u128]string
+    token_royalty_bps: map[u128]u128
+    token_minted_epoch: map[u128]u128
+    balances: map[address]u128
+    approvals: map[u128]address
+    operator_approvals: map[address]map[address]u128
+    circle_resource_count: map[u128]u128
+    circle_resource_uri: map[u128]map[u128]string
+    circle_resource_access: map[u128]map[u128]string
+    circle_resource_active: map[u128]map[u128]u128
+    event_log: map[u128]string
+    event_log_count: u128
+  }
+
+  constructor(token_name: string, token_symbol: string) {
+    require(len(token_name) > 0, "xns1: name empty")
+    require(len(token_name) <= 64, "xns1: name too long")
+    require(len(token_symbol) > 0, "xns1: symbol empty")
+    require(len(token_symbol) <= 12, "xns1: symbol too long")
+    self.owner = caller
+    self.name = token_name
+    self.symbol = token_symbol
+  }
+
+  private fn only_owner() {
+    require(caller == self.owner, "xns1: not authorized")
+  }
+
+  // phase 3 / price 0: no sale phases here, but the indexer parses one line format for every collection
+  private fn _log_mint(token_id: u128, to: address) {
+    let entry = concat("mint|", to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(to))
+    entry = concat(entry, "|3|0|")
+    entry = concat(entry, to_string(epoch))
+    self.event_log[self.event_log_count] = entry
+    self.event_log_count += 1
+  }
+
+  private fn _log_transfer(token_id: u128, from: address, to: address) {
+    let entry = concat("xfer|", to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(from))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(to))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    self.event_log[self.event_log_count] = entry
+    self.event_log_count += 1
+  }
+
+  private fn _log_burn(token_id: u128, from: address) {
+    let entry = concat("burn|", to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(from))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    self.event_log[self.event_log_count] = entry
+    self.event_log_count += 1
+  }
+
+  fn mint(to: address, creator: address, metadata_uri: string, royalty_bps: u128): u128 {
+    only_owner()
+    assert_address(to)
+    assert_address(creator)
+    require(royalty_bps <= MAX_ROYALTY_BPS, "xns1: royalty exceeds 10%")
+
+    let id: u128 = self.next_id
+    self.token_owner[id] = to
+    self.token_creator[id] = creator
+    self.token_uri_of[id] = metadata_uri
+    self.token_royalty_bps[id] = royalty_bps
+    self.token_minted_epoch[id] = epoch
+
+    let new_balance: u128 = self.balances[to] + 1
+    require(new_balance > self.balances[to], "xns1: balance overflow")
+    self.balances[to] = new_balance
+
+    let new_next: u128 = self.next_id + 1
+    require(new_next > self.next_id, "xns1: id overflow")
+    self.next_id = new_next
+
+    _log_mint(id, to)
+    emit Minted(id, to, creator)
+    emit Transferred(id, 0, to)
+    return id
+  }
+
+  fn burn(token_id: u128): bool {
+    require(token_id < self.next_id, "xns1: token not found")
+
+    let current_owner: address = self.token_owner[token_id]
+    require(current_owner != 0, "xns1: token burned")
+    require(caller == current_owner, "xns1: not owner")
+    require(self.balances[current_owner] >= 1, "xns1: zero balance")
+
+    self.token_owner[token_id] = 0
+    self.approvals[token_id] = 0
+    self.balances[current_owner] = self.balances[current_owner] - 1
+
+    let new_burned: u128 = self.burned_count + 1
+    require(new_burned > self.burned_count, "xns1: burn counter overflow")
+    self.burned_count = new_burned
+
+    require(self.next_id >= self.burned_count, "xns1: supply underflow")
+    let supply_after: u128 = self.next_id - self.burned_count
+
+    _log_burn(token_id, current_owner)
+    emit Transferred(token_id, current_owner, 0)
+    emit Burned(token_id, current_owner, supply_after)
+    return true
+  }
+
+  fn transfer(to: address, token_id: u128): bool {
+    require(token_id < self.next_id, "xns1: token not found")
+    assert_address(to)
+
+    let current_owner: address = self.token_owner[token_id]
+    require(current_owner != 0, "xns1: token burned")
+    require(caller == current_owner, "xns1: not owner")
+    require(to != current_owner, "xns1: already owner")
+    require(self.balances[current_owner] >= 1, "xns1: zero balance")
+
+    self.token_owner[token_id] = to
+    self.balances[current_owner] = self.balances[current_owner] - 1
+
+    let new_balance: u128 = self.balances[to] + 1
+    require(new_balance > self.balances[to], "xns1: balance overflow")
+    self.balances[to] = new_balance
+
+    self.approvals[token_id] = 0
+
+    _log_transfer(token_id, current_owner, to)
+    emit Transferred(token_id, current_owner, to)
+    return true
+  }
+
+  fn transfer_from(from: address, to: address, token_id: u128): bool {
+    require(token_id < self.next_id, "xns1: token not found")
+    assert_address(from)
+    assert_address(to)
+
+    let current_owner: address = self.token_owner[token_id]
+    require(current_owner != 0, "xns1: token burned")
+    require(from == current_owner, "xns1: from is not owner")
+    require(to != current_owner, "xns1: already owner")
+    require(self.balances[from] >= 1, "xns1: zero balance")
+
+    let approved: address = self.approvals[token_id]
+    let is_operator: u128 = self.operator_approvals[from][caller]
+    require(
+      caller == current_owner || caller == approved || is_operator == 1,
+      "xns1: not authorized"
+    )
+
+    self.token_owner[token_id] = to
+    self.balances[from] = self.balances[from] - 1
+
+    let new_balance: u128 = self.balances[to] + 1
+    require(new_balance > self.balances[to], "xns1: balance overflow")
+    self.balances[to] = new_balance
+
+    self.approvals[token_id] = 0
+
+    _log_transfer(token_id, from, to)
+    emit Transferred(token_id, from, to)
+    return true
+  }
+
+  fn approve(approved: address, token_id: u128): bool {
+    require(token_id < self.next_id, "xns1: token not found")
+    assert_address(approved)
+
+    let current_owner: address = self.token_owner[token_id]
+    require(current_owner != 0, "xns1: token burned")
+    let is_operator: u128 = self.operator_approvals[current_owner][caller]
+    require(caller == current_owner || is_operator == 1, "xns1: not authorized")
+
+    self.approvals[token_id] = approved
+    emit Approved(token_id, approved)
+    return true
+  }
+
+  fn revoke_approval(token_id: u128): bool {
+    require(token_id < self.next_id, "xns1: token not found")
+
+    let current_owner: address = self.token_owner[token_id]
+    require(current_owner != 0, "xns1: token burned")
+    let is_operator: u128 = self.operator_approvals[current_owner][caller]
+    require(caller == current_owner || is_operator == 1, "xns1: not authorized")
+
+    self.approvals[token_id] = 0
+    emit ApprovalRevoked(token_id)
+    return true
+  }
+
+  fn set_operator(operator: address, approved: u128): bool {
+    assert_address(operator)
+    require(operator != caller, "xns1: cannot self-operate")
+    require(approved <= 1, "xns1: approved must be 0 or 1")
+
+    self.operator_approvals[caller][operator] = approved
+    emit OperatorSet(caller, operator, approved)
+    return true
+  }
+
+  fn transfer_ownership(new_owner: address): bool {
+    only_owner()
+    assert_address(new_owner)
+
+    let old: address = self.owner
+    self.owner = new_owner
+    emit OwnershipTransferred(old, new_owner)
+    return true
+  }
+
+  fn set_provenance_hash(hash: string): bool {
+    only_owner()
+    require(self.provenance_hash == "", "xns1: provenance hash already set")
+    require(len(hash) > 0, "xns1: hash cannot be empty")
+    self.provenance_hash = hash
+    emit ProvenanceHashSet(hash)
+    return true
+  }
+
+  view fn get_provenance_hash(): string {
+    return self.provenance_hash
+  }
+
+  fn add_circle_resource(token_id: u128, uri: string, access: string): u128 {
+    only_owner()
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+
+    let resource_id: u128 = self.circle_resource_count[token_id]
+    self.circle_resource_uri[token_id][resource_id] = uri
+    self.circle_resource_access[token_id][resource_id] = access
+    self.circle_resource_active[token_id][resource_id] = 1
+
+    let new_count: u128 = self.circle_resource_count[token_id] + 1
+    require(new_count > self.circle_resource_count[token_id], "xns1: resource overflow")
+    self.circle_resource_count[token_id] = new_count
+
+    emit CircleResourceSet(token_id, resource_id, uri, access)
+    return resource_id
+  }
+
+  fn set_circle_resource(token_id: u128, resource_id: u128, uri: string, access: string): bool {
+    only_owner()
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    require(resource_id < self.circle_resource_count[token_id], "xns1: circle resource not found")
+
+    self.circle_resource_uri[token_id][resource_id] = uri
+    self.circle_resource_access[token_id][resource_id] = access
+    self.circle_resource_active[token_id][resource_id] = 1
+    emit CircleResourceSet(token_id, resource_id, uri, access)
+    return true
+  }
+
+  // no burned check here on purpose: attaching content to a burned token is wrong, clearing it is cleanup
+  fn clear_circle_resource(token_id: u128, resource_id: u128): bool {
+    only_owner()
+    require(token_id < self.next_id, "xns1: token not found")
+    require(resource_id < self.circle_resource_count[token_id], "xns1: circle resource not found")
+
+    self.circle_resource_uri[token_id][resource_id] = ""
+    self.circle_resource_access[token_id][resource_id] = ""
+    self.circle_resource_active[token_id][resource_id] = 0
+    emit CircleResourceCleared(token_id, resource_id)
+    return true
+  }
+
+  view fn owner_of(token_id: u128): address {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    return self.token_owner[token_id]
+  }
+
+  view fn creator_of(token_id: u128): address {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    return self.token_creator[token_id]
+  }
+
+  view fn royalty_of(token_id: u128): u128 {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    return self.token_royalty_bps[token_id]
+  }
+
+  view fn token_uri(token_id: u128): string {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    return self.token_uri_of[token_id]
+  }
+
+  view fn token_circle_count(token_id: u128): u128 {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    return self.circle_resource_count[token_id]
+  }
+
+  view fn token_circle_uri(token_id: u128, resource_id: u128): string {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    require(resource_id < self.circle_resource_count[token_id], "xns1: circle resource not found")
+    if self.circle_resource_active[token_id][resource_id] == 0 {
+      return ""
+    }
+    return self.circle_resource_uri[token_id][resource_id]
+  }
+
+  view fn collection_of(token_id: u128): string {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    return self.name
+  }
+
+  view fn balance_of(addr: address): u128 {
+    assert_address(addr)
+    return self.balances[addr]
+  }
+
+  view fn get_approved(token_id: u128): address {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    return self.approvals[token_id]
+  }
+
+  view fn total_supply(): u128 {
+    require(self.next_id >= self.burned_count, "xns1: supply underflow")
+    return self.next_id - self.burned_count
+  }
+
+  view fn total_minted(): u128 {
+    return self.next_id
+  }
+
+  view fn burned(): u128 {
+    return self.burned_count
+  }
+
+  view fn is_burned(token_id: u128): u128 {
+    require(token_id < self.next_id, "xns1: token not found")
+    if self.token_owner[token_id] == 0 { return 1 }
+    return 0
+  }
+
+  view fn symbol(): string {
+    return self.symbol
+  }
+
+  view fn is_approved_or_owner(token_id: u128, addr: address): u128 {
+    assert_address(addr)
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+
+    let current_owner: address = self.token_owner[token_id]
+    if addr == current_owner { return 1 }
+    if self.approvals[token_id] == addr { return 1 }
+    if self.operator_approvals[current_owner][addr] == 1 { return 1 }
+    return 0
+  }
+
+  view fn get_token_info(token_id: u128): string {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+
+    let out = to_string(token_id)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.token_owner[token_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.token_creator[token_id]))
+    out = concat(out, "|")
+    out = concat(out, self.name)
+    out = concat(out, "|")
+    out = concat(out, to_string(self.token_royalty_bps[token_id]))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.token_minted_epoch[token_id]))
+    out = concat(out, "|")
+    out = concat(out, self.token_uri_of[token_id])
+    return out
+  }
+
+  view fn get_token_circle_info(token_id: u128, resource_id: u128): string {
+    require(token_id < self.next_id, "xns1: token not found")
+    require(self.token_owner[token_id] != 0, "xns1: token burned")
+    require(resource_id < self.circle_resource_count[token_id], "xns1: circle resource not found")
+
+    let out = to_string(token_id)
+    out = concat(out, "|")
+    out = concat(out, to_string(resource_id))
+    out = concat(out, "|")
+    out = concat(out, self.circle_resource_uri[token_id][resource_id])
+    out = concat(out, "|")
+    out = concat(out, self.circle_resource_access[token_id][resource_id])
+    out = concat(out, "|")
+    out = concat(out, to_string(self.circle_resource_active[token_id][resource_id]))
+    out = concat(out, "|2")
+    return out
+  }
+
+  view fn get_contract_info(): string {
+    require(self.next_id >= self.burned_count, "xns1: supply underflow")
+    let supply: u128 = self.next_id - self.burned_count
+
+    let out = self.name
+    out = concat(out, "|")
+    out = concat(out, self.symbol)
+    out = concat(out, "|")
+    out = concat(out, to_string(supply))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.owner))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.next_id))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.burned_count))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.event_log_count))
+    return out
+  }
+
+  view fn get_event_log(from: u128, count: u128): string {
+    let total = self.event_log_count
+    let out = to_string(total)
+    let safe_count = count
+    if safe_count > 50 { safe_count = 50 }
+    let i = 0
+    for i in 0..safe_count {
+      let idx = from + i
+      if idx < total {
+        out = concat(out, "~")
+        out = concat(out, self.event_log[idx])
+      }
+    }
+    return out
+  }
+
+}

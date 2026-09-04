@@ -1,0 +1,225 @@
+{
+ "certificate": {
+  "schema": "aml_bytecode_certificate_v1",
+  "compiler": "octra_aml",
+  "compiler_version": "1.0 Rehovot",
+  "declaration": "contract",
+  "verification_schema": "aml_safety_report_v1",
+  "source_mode": "single",
+  "source_hash": "7373f38fc77000d860584592f3a51d01f70826b6bb4017e973424beefeceac28",
+  "bytecode_hash": "605b99182f86c5eb810f3344332fa72575e538fb1009ad849af192de68bdd151",
+  "verification_hash": "478738d3735bd1771b40c70bdae5ee3392276a4298525c62360da39cbad64a66"
+ },
+ "verification": {
+  "schema": "aml_safety_report_v1",
+  "engine": "aml_ast_verifier",
+  "proof_model": "formal/coq/aml_value_safety_model.v",
+  "proof_gate": "scripts/check_aml_formal.sh",
+  "program_name": "SuperFactory",
+  "verified": true,
+  "safety": "safe",
+  "errors": 0,
+  "warnings": 0,
+  "trace": [
+   {
+    "code": "signed_value_storage",
+    "title": "value-like storage must not use signed int",
+    "status": "pass",
+    "severity": "error",
+    "findings": 0
+   },
+   {
+    "code": "signed_value_parameter",
+    "title": "value-moving public parameters must not use signed int",
+    "status": "pass",
+    "severity": "error",
+    "findings": 0
+   },
+   {
+    "code": "signed_value_flow",
+    "title": "signed values must not flow into value-like storage writes",
+    "status": "pass",
+    "severity": "error",
+    "findings": 0
+   },
+   {
+    "code": "unsigned_arithmetic_range_not_proven",
+    "title": "unsigned arithmetic writes must prove range safety",
+    "status": "pass",
+    "severity": "error",
+    "findings": 0
+   },
+   {
+    "code": "supply_invariant_unproven",
+    "title": "balance and total supply writes should preserve conservation",
+    "status": "pass",
+    "severity": "warning",
+    "findings": 0
+   },
+   {
+    "code": "unsigned_parameter_without_positive_guard",
+    "title": "unsigned value parameters should reject zero unless zero is meaningful",
+    "status": "pass",
+    "severity": "warning",
+    "findings": 0
+   },
+   {
+    "code": "unchecked_transfer_result",
+    "title": "native transfer result should be checked",
+    "status": "pass",
+    "severity": "warning",
+    "findings": 0
+   }
+  ],
+  "function_summaries": [
+   {
+    "name": "only_owner",
+    "visibility": "private",
+    "direct_calls": [],
+    "direct_writes": [],
+    "transitive_writes": [],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "create_collection",
+    "visibility": "public",
+    "direct_calls": [
+     "assert_address",
+     "call",
+     "deploy",
+     "is_address"
+    ],
+    "direct_writes": [
+     "collections",
+     "count",
+     "xlist_of",
+     "xlists"
+    ],
+    "transitive_writes": [
+     "collections",
+     "count",
+     "xlist_of",
+     "xlists"
+    ],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "transfer_ownership",
+    "visibility": "public",
+    "direct_calls": [
+     "assert_address",
+     "only_owner"
+    ],
+    "direct_writes": [
+     "owner"
+    ],
+    "transitive_writes": [
+     "owner"
+    ],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "set_platform_wallet",
+    "visibility": "public",
+    "direct_calls": [
+     "assert_address",
+     "only_owner"
+    ],
+    "direct_writes": [
+     "platform_wallet"
+    ],
+    "transitive_writes": [
+     "platform_wallet"
+    ],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "get_collection",
+    "visibility": "public",
+    "direct_calls": [],
+    "direct_writes": [],
+    "transitive_writes": [],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "get_xlist",
+    "visibility": "public",
+    "direct_calls": [],
+    "direct_writes": [],
+    "transitive_writes": [],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "get_xlist_for_collection",
+    "visibility": "public",
+    "direct_calls": [],
+    "direct_writes": [],
+    "transitive_writes": [],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "get_count",
+    "visibility": "public",
+    "direct_calls": [],
+    "direct_writes": [],
+    "transitive_writes": [],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "get_owner",
+    "visibility": "public",
+    "direct_calls": [],
+    "direct_writes": [],
+    "transitive_writes": [],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "get_platform_wallet",
+    "visibility": "public",
+    "direct_calls": [],
+    "direct_writes": [],
+    "transitive_writes": [],
+    "value_writes": [],
+    "signed_params": []
+   },
+   {
+    "name": "constructor",
+    "visibility": "public",
+    "direct_calls": [],
+    "direct_writes": [
+     "count",
+     "owner",
+     "platform_wallet"
+    ],
+    "transitive_writes": [
+     "count",
+     "owner",
+     "platform_wallet"
+    ],
+    "value_writes": [],
+    "signed_params": []
+   }
+  ],
+  "invariants": [
+   {
+    "code": "supply_balance_conservation",
+    "kind": "derived",
+    "status": "not_applicable",
+    "expression": null,
+    "message": "program does not expose both balance and supply storage",
+    "fields": [],
+    "functions": []
+   }
+  ],
+  "findings": []
+ }
+}

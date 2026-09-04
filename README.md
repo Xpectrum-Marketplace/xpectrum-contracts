@@ -1,158 +1,193 @@
 # xpectrum-contracts
 
-smart contracts for [Xpectrum](https://xpectrum.xyz), the first NFT marketplace on [Octra](https://octra.org).
+Smart contracts for [Xpectrum](https://xpectrum.xyz), the ownership layer for on-chain objects on [Octra](https://octra.org).
 
-written in AML (AppliedML), Octra's native contract language. all contracts are formally verified using the AML AST verifier (`aml_safety_report_v1`).
+Written in AML (Applied Meta Language), Octra's native contract language. Every contract here is formally verified with the AML AST verifier (`aml_safety_report_v1`, Coq-backed model) before deployment, and the full report for each is in [`verification/`](./verification/).
+
+Versions follow [CHANGELOG.md](./CHANGELOG.md), which says what changed and whether callers have to do anything.
 
 ---
 
-## contracts
+## Deployed on Octra mainnet
 
-### XNS-1 rev 3: Xpectrum NFT Standard
-base non-fungible token contract. defines the standard interface all NFTs on Xpectrum conform to.
+| Contract | Version | Address |
+|---|---|---|
+| Xmarket | v3.2.0 | `octGoeTjaF8MiKTP5ad5FJfWMCZmmEdnrfxTow6UUVmBj6h` |
+| XuperFactory | v2.0.0 | `octHgTcvueQE5LRb2PYLJqa5T9ypUgBuyY5XyxRstoSdBVN` |
+| Xcollection | v4.0.0 | deployed per collection by XuperFactory |
+| Xlist | v2.0.0 | deployed per collection by XuperFactory |
+| XpectrumGenesis (Xpectra) | v1.0.1 | `octC4PvHrT8U1vDsZ5ejEBj6UgW2fRoLfohFBSCePdstZfQ` |
+| Xincinerator | v1.0.0 | `octGn3QwHTcGjo6Vjz5G9y8Z9hZDsYoA7gbksRqdJoaeg6q` |
+| XincineratorLog | v1.0.0 | `oct4u3PmynG2jDJADUF1iVTwPA8oxNy2LQTYNKueGdPN3zh` |
+
+RPC `https://octra.network/rpc`, explorer [octrascan.io](https://octrascan.io). Mainnet expects browser-shaped requests, so send an `Origin` and a `User-Agent` header or you get an HTML error page instead of JSON.
+
+---
+
+## Contracts
+
+### XNS1: the Xpectrum NFT standard
+
+Base non-fungible token contract. Defines the interface every NFT on Xpectrum conforms to, and the one a third party implements to trade on Xmarket without asking anyone.
 
 - mint, transfer, approve, operator pattern
-- royalty support (up to 10%)
-- provenance hash (one-way, owner-set)
+- royalty as a first-class per-token field, capped at 10%
+- one-way provenance hash, owner-set
 - per-token and contract-level circle resource pointers
-- `get_token_info`, `get_contract_info`, `get_token_circle_info` for indexer/wallet compatibility
-- verified: true / errors: 0 / warnings: 5 (all documented false positives)
+- `get_token_info`, `get_contract_info`, `get_token_circle_info` for indexers and wallets
 
-### Xcollection v3: drop contract
-full launch contract. implements XNS-1 and handles the entire collection lifecycle. deployed and linked by SuperFactory.
+`contracts/XNS1.aml` is v3.0.0, which is what conforming contracts implement today. v4.0.0 is drafted in [`draft/`](./draft/) and is not deployed: it adds burn, splits the supply counters, and changes `is_approved_or_owner` to return `u128`. Those are breaking, so it will not ship without a published standard revision first.
 
-- three-phase minting: GTD (guaranteed) >> FCFS >> public
-- per-phase wallet caps + global wallet cap
-- genesis injection: up to 20% of supply (max 222) reserved for XpectrumGenesis holders
-  - each genesis token ID usable once per collection (`genesis_claimed` map)
-  - `trigger_sweep()` is permissionless; anyone may call once GTD ends to return unclaimed slots to the public cap
-- airdrop (up to 20 addresses per call, all-or-nothing)
-- pull-based proceeds split: 97.5% creator / 2.5% platform
-- reveal / unrevealed URI pattern
-- one-way provenance hash (`set_provenance_hash`)
-- holder enumeration index (`get_holders_page`)
-- `trusted_factory` auth: factory address may be granted the same permissions as owner/admin
-- pause/unpause, phase override for admin control
-- on-chain event log
-- verified: true / errors: 0 / warnings: 5 (all documented false positives)
+### Xcollection: the drop contract
 
-### Xmarket v3: secondary marketplace
-secondary marketplace. works with any XNS-1 compatible contract.
+The full launch contract. Implements XNS-1 and handles the whole collection lifecycle. Deployed and linked by XuperFactory.
 
-- list, buy, cancel listings
-- token offers and collection-wide offers (`offer_is_collection` flag)
+- three-phase minting: guaranteed, first come, public, each a time window in epochs with a 240-epoch minimum
+- per-phase caps, per-phase wallet caps, and a global wallet cap
+- xholder reserve: `min(floor(max_supply * 0.2), 111)` held for Xpectra holders, its own pool, decoupled from the guaranteed allocation so it can never erode a creator's allowlist. One claim per wallet.
+- `trigger_sweep()` is permissionless: once guaranteed ends, anyone may return unclaimed reserve slots to the public pool
+- `burn(token_id)`, callable only by the current holder. `max_supply` never moves, ids are never reused, live supply is derived as `total_minted - burned`
+- airdrop, up to 20 addresses per call, all or nothing
+- pull-based proceeds, split 97.5% creator / 2.5% platform
+- reveal, with an unrevealed URI before it
+- one-way provenance hash
+- holder enumeration index, `get_holders_page`
+- `trusted_factory` auth, pause/unpause, phase override
+
+### Xmarket: secondary trading
+
+Works with any XNS-1 contract, and with contracts shaped like ERC-721 through the standard-mode lane.
+
+- list, buy, cancel
+- single-token offers and collection-wide offers, the latter carrying a quantity
 - royalties enforced on every sale
-- all proceeds pull-based via `claim_proceeds()`
-- 2.5% marketplace fee
+- all proceeds pull-based, through `claim_proceeds()`
+- 2.5% fee
+- no self-buy, no accepting your own offer
 - swap-and-pop index with stale-entry zeroing
-- self-buy guard, immediate overpayment refund
-- verified: true / errors: 0 / warnings: 0
 
-### XlistFactory: whitelist manager factory
-deploys Xlist instances for collections. call `create_xlist(collection_addr)` to deploy and initialize an Xlist in one transaction.
+### XlistFactory and Xlist: allowlists
+
+`create_xlist(collection_addr)` deploys and initialises an Xlist in one transaction.
 
 - one Xlist per collection, bound at deploy time
-- phase 0 = GTD, phase 1 = FCFS
-- `add_batch` / `remove_batch` for bulk updates (20 addresses per call)
-- `is_whitelisted` only responds to calls from the registered collection
+- phase 0 is guaranteed, phase 1 is first come
+- `add_batch` / `remove_batch`, 20 addresses per call
+- `is_whitelisted` answers only the collection it is registered to
 
-### SuperFactory: permissionless collection launcher
-deploys a fully linked Xcollection v3 + Xlist pair in a single transaction. no owner gate on `create_collection`; any wallet may deploy.
+### XuperFactory: permissionless launcher
 
-- embeds the verified Xcollection v3 bytecode (bytecode_hash `5f946123...`)
-- deploys Xlist via XlistFactory and links both to the new collection
-- `get_collection(idx)` and `get_count()` for enumeration
+Deploys a linked Xcollection and Xlist in a single transaction. No owner gate on `create_collection`: any wallet may launch.
 
-### XpectrumGenesis: Beta Genesis
-root genesis collection. 3-phase mint with no parent injection dependency. holding a Beta Genesis token grants GTD access on future Xcollection drops.
+- embeds the verified Xcollection bytecode
+- deploys the Xlist through XlistFactory and links both
+- the platform wallet is held in factory state, never taken from the caller
+- `create_collection` requires a launch fee, currently 1 OCT, readable with `get_launch_fee()`. The fee accrues in the contract and is withdrawn separately, so the launch path contains no external transfer that could revert a deploy.
+- `get_collection(idx)` and `get_count()` enumerate
 
-- standard 3-phase mint (GTD/FCFS/public), no genesis_mint/injection mechanics
-- collection-level circle resources (metadata circle for token assets)
-- verified: true / errors: 0 / warnings: 4 (all documented false positives)
+### XpectrumGenesis: the founding collection
+
+The root collection, deployed once as **Xpectra**. Three-phase mint with no parent reserve of its own, because holding Xpectra is what grants the reserve on other collections.
+
+No `xholder_mint`, no reserve, and no `burn`: its supply is fixed at what was minted.
+
+### Xincinerator and XincineratorLog: burning by retirement
+
+`XpectrumGenesis` has no burn function, so 111 Xpectra were burned by sending them somewhere nothing can send them back from.
+
+`Xincinerator` is the sink. It has no owner, no entry points, no `call()`, and nothing but two view functions. Its ABI is the argument: `octra_contractAbi(<Xincinerator>)` returns two functions, both `view: true`, and there is no code path that can move a token out.
+
+`XincineratorLog` batches transfers into the sink and emits `Burned`. It can only ever name the incinerator fixed in its constructor, and only touches tokens whose owner is the caller.
 
 ---
 
-## formal verification
+## Formal verification
 
-all contracts are verified using the AML AST verifier (`aml_safety_report_v1`, Coq-backed model). verification reports and bytecode certificates are in [`verification/`](./verification/).
-
-| contract | verified | errors | warnings |
+| Contract | Verified | Errors | Warnings |
 |---|---|---|---|
-| XNS1.aml | true | 0 | 5 |
-| Xcollection_v3.aml | true | 0 | 5 |
-| Xmarket_v3.aml | true | 0 | 0 |
-| XpectrumGenesis.aml | true | 0 | 4 |
+| XNS1 v3.0.0 | true | 0 | 5 |
+| Xcollection v4.0.0 | true | 0 | 7 |
+| Xmarket v3.2.0 | true | 0 | 0 |
+| XuperFactory v2.0.0 | true | 0 | 1 |
+| XpectrumGenesis v1.0.1 | true | 0 | 4 |
 
-warnings are `unsigned_parameter_without_positive_guard` on token IDs and royalty. documented false positives: zero is a valid token ID (0-indexed) and royalty_bps = 0 means royalty-free.
+Warnings are all `unsigned_parameter_without_positive_guard`, on token ids, royalty, and the launch fee. They are documented false positives: zero is a valid token id because ids are 0-indexed, `royalty_bps = 0` means royalty-free, and a launch fee of 0 is deliberately allowed so launching can be made free.
 
----
+Each report in `verification/` carries the `bytecode_hash`, `source_hash` and `verification_hash` for that build. Compare a fresh compile against `bytecode_hash`, not `source_hash`: comments do not change bytecode, so `source_hash` moves on a comment edit while `bytecode_hash` does not.
 
-## devnet addresses
+The same source compiles to different bytecode on devnet and mainnet. That is a property of the toolchain, not a mismatch, so a per-chain build has its own `bytecode_hash`.
 
-| contract | address |
+`XuperFactory.aml` here is the **mainnet** build. The factory embeds compiled Xcollection bytecode, and that blob is compiled per chain, so the devnet build differs from this file in exactly one constant (`XCOLLECTION_BYTECODE`) and nowhere else.
+
+## Reproducing a hash
+
+Compile a source file straight off the node and compare. No wallet, no tooling, no cost:
+
+```bash
+curl -s -X POST https://octra.network/rpc \
+  -H "Content-Type: application/json" \
+  -H "Origin: https://app.xpectrum.xyz" \
+  -H "User-Agent: Mozilla/5.0" \
+  -d "$(jq -Rs '{jsonrpc:"2.0",method:"octra_compileAml",params:[.],id:1}' contracts/Xmarket.aml)" \
+  | jq -r '.result.certificate.bytecode_hash'
+```
+
+Known good, verified 2026-09-04:
+
+| File | bytecode_hash |
 |---|---|
-| XNS-1 rev 3 | `octE3czdARy1cLMcaJgXzDQ8mvjLpDWRMLCzuCP8CjniLxf` |
-| Xcollection v3 | `octG9g7GBNRbnTiiZy7pdvyAh1VgJ8QRuZG4hKiiLvp3HSj` |
-| Xmarket v3 | `octBQG94WAh4dqwtp3dBSMdd7RqL5oBQG74t6nxLzGaYK2m` |
-| XlistFactory | `octFUYZEhtiUBZ7PUJr4Nj8ZoCKkNkh6mTYgE5nD6iyqYGq` |
-| SuperFactory | `octCrVxhxVz8uWCbC1j6wg1Y1Fn8MvdTwc6AgVgxiC1rQgx` |
-| XpectrumGenesis (Beta Genesis) | `octC2SvevEnrXwr2zBrHzhmjeY3p8Y4dEPmRzG9MdEgeZEY` |
+| `contracts/Xmarket.aml` | `943cbd42f67c2d704c1ec7b1f01facc1a59024a4ce79db7afc8686baeec60e66` |
+| `contracts/XuperFactory.aml` | `4fa02e39bd1c3f2e78f4dba2bb34a6882a3d910a2213e3f6af73c8a9d4228e6a` |
 
-explorer: [devnet.octrascan.io](https://devnet.octrascan.io/)
+Both match what is deployed at the addresses in the table above.
 
 ---
 
-## interface notes
+## Interface notes
 
-all amounts are in raw micro-OCT (ou). 1 OCT = 1,000,000 ou.
+Amounts are in micro-OCT (`ou`). 1 OCT = 1,000,000 ou.
 
-pipe-delimited view functions:
+Pipe-delimited views:
 
 - `XNS1.get_token_info(id)` >> `id | owner | creator | name | royalty_bps | minted_epoch | uri`
 - `XNS1.get_token_circle_info(id, resource_id)` >> `token_id | resource_id | uri | access | active | version`
 - `XNS1.get_contract_info()` >> `name | symbol | total_supply | owner`
-- `Xcollection.get_contract_info()` >> `name | symbol | total_minted | max_supply | royalty_bps | owner | revealed`
-- `Xcollection.get_phase_info()` >> `gtd_price | gtd_start | gtd_end | gtd_cap | gtd_minted | gtd_wallet_cap | fcfs_price | fcfs_start | fcfs_end | fcfs_cap | fcfs_minted | fcfs_wallet_cap | pub_price | pub_start | pub_end | pub_cap | pub_minted | pub_wallet_cap | injection_cap | genesis_minted_count`
-- `Xcollection.get_genesis_status()` >> `genesis_minted_count | injection_cap | genesis_contract | injection_swept`
+- `Xcollection.get_contract_info()` >> `name | symbol | total_minted | max_supply | royalty_bps | owner | revealed | burned`
+- `Xcollection.get_phase_info()` >> `gtd_price | gtd_start | gtd_end | gtd_cap | gtd_minted | gtd_wallet_cap | fcfs_price | fcfs_start | fcfs_end | fcfs_cap | fcfs_minted | fcfs_wallet_cap | pub_price | pub_start | pub_end | pub_cap | pub_minted | pub_wallet_cap | injection_cap | xholder_minted_count`
+- `Xcollection.get_xholder_status()` >> `xholder_minted_count | injection_cap | xpectra_contract | injection_swept`
 - `Xcollection.get_wallet_state(wallet)` >> `paused | phase | minted_by_wallet | wl_gtd | wl_fcfs | pending_proceeds`
 - `Xcollection.get_collection_circle_info(resource_id)` >> `resource_id | base_uri | suffix | unrevealed_uri | access | active | version`
 - `Xcollection.get_holders_page(offset, limit)` >> `total_holders | addr0 | addr1 | ...`
 - `Xmarket.get_listing(id)` >> `listing_id | seller | nft_contract | token_id | price | status | listed_epoch`
-- `Xmarket.get_offer(id)` >> `offer_id | offerer | nft_contract | token_id | offer_is_collection | amount | expires_epoch | active`
+- `Xmarket.get_offer(id)` >> `offer_id | offerer | nft_contract | token_id | offer_is_collection | amount | quantity | expires_epoch | active`
 - `Xmarket.get_market_info()` >> `listing_count | offer_count | total_volume | fee_balance | reserve | offer_reserve`
 
-### circle resources
+`XpectrumGenesis` predates the burn work, so its `get_contract_info` ends at `revealed` and it has no `total_minted`, `burned`, `is_burned` or `xholder_*` views. Check which contract you are reading before indexing into a pipe split.
 
-XNS-1-compatible contracts may expose circle resource pointers alongside `token_uri`.
+### Circle resources
 
-- `token_circle_count(token_id)` returns the number of circle refs attached to a token.
-- `token_circle_uri(token_id, resource_id)` returns a circle ref, usually an `oct://...` uri.
-- iterate `0` to `token_circle_count(token_id)-1`, then use `get_token_circle_info` to read `active`.
-- `access` is a non-authoritative client hint, currently `public` or `sealed_read`.
-- circle refs are pointers only. contracts do not enforce circle access policy.
+XNS-1 contracts may expose circle resource pointers alongside `token_uri`.
 
-Xcollection stores collection-level circle templates: each resource resolves as `base_uri + token_id + suffix` after reveal, or `unrevealed_uri` before reveal when set.
+- `token_circle_count(token_id)` returns how many circle refs a token has
+- `token_circle_uri(token_id, resource_id)` returns a ref, usually an `oct://...` uri
+- iterate `0` to `token_circle_count(token_id) - 1`, then read `get_token_circle_info` for `active`
+- `access` is a client hint and is not authoritative
+- circle refs are pointers only. Contracts do not enforce circle access policy.
 
----
-
-## abi changes vs previous versions
-
-**Xmarket v3 vs v2:**
-- `offer_is_collection` flag (1/0) replaces the `token_id == -1` sentinel. u128 cannot represent -1. `get_offer` returns an extra field.
-- collection-offer events tagged `coffer|` instead of `offer|`
-
-**Xcollection v3 vs v2:**
-- `trigger_sweep()` replaces `sweep_injection()` and is now permissionless (anyone may call once GTD ends)
-- new entry points: `set_trusted_factory`, `get_holders_page`, `has_claimed_genesis`
-- `genesis_mint` is 1-per-wallet tracked via `genesis_claimed` map, decoupled from gtd allocation
-- all money/count fields use u128 (breaking struct/event layout change from v2)
+Xcollection stores collection-level templates: each resource resolves as `base_uri + token_id + suffix` after reveal, or `unrevealed_uri` before it.
 
 ---
 
-## rpc
+## Building on this
 
-devnet: `https://devnet.octrascan.io/rpc`
+Implement XNS-1 and your contract trades on Xmarket with no permission from us. Xmarket only relies on `owner_of`, `is_approved_or_owner`, `transfer_from`, `creator_of` and `royalty_of`.
+
+`is_approved_or_owner` takes `token_id` first and the address second. Reversing them fails silently at settlement.
+
+Full integration guide: [docs.xpectrum.xyz](https://docs.xpectrum.xyz/developers/integrate).
 
 ---
 
-built by [Hermit](t.me/h8rmitt)
+## Licence
+
+MIT. See [LICENSE](./LICENSE).

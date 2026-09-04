@@ -1,0 +1,1329 @@
+{
+  "size": 46910,
+  "instructions": 9764,
+  "abi": "{\"functions\":[{\"name\":\"init\",\"inputs\":[\"string\",\"string\",\"string\",\"bytes\",\"bytes\",\"bytes\",\"address\",\"address\",\"address\",\"bytes\",\"bytes\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"get_current_phase\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"mint\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"airdrop\",\"inputs\":[\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"transfer\",\"inputs\":[\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"transfer_from\",\"inputs\":[\"address\",\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"approve\",\"inputs\":[\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"revoke_approval\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"set_operator\",\"inputs\":[\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"claim_proceeds\",\"inputs\":[],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"reveal\",\"inputs\":[\"string\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"update_base_uri\",\"inputs\":[\"string\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"set_unrevealed_uri\",\"inputs\":[\"string\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"add_collection_circle_resource\",\"inputs\":[\"string\",\"string\",\"string\",\"string\"],\"output\":\"bytes\",\"view\":false,\"payable\":false},{\"name\":\"set_collection_circle_resource\",\"inputs\":[\"bytes\",\"string\",\"string\",\"string\",\"string\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"clear_collection_circle_resource\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"update_phase_prices\",\"inputs\":[\"bytes\",\"bytes\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"update_phase_caps\",\"inputs\":[\"bytes\",\"bytes\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"update_phase_wallet_caps\",\"inputs\":[\"bytes\",\"bytes\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"update_phase_epochs\",\"inputs\":[\"bytes\",\"bytes\",\"bytes\",\"bytes\",\"bytes\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"set_phase_override\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"clear_phase_override\",\"inputs\":[],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"pause\",\"inputs\":[],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"unpause\",\"inputs\":[],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"set_max_per_wallet\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"update_xpectrum_wallet\",\"inputs\":[\"address\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"update_admin\",\"inputs\":[\"address\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"set_trusted_factory\",\"inputs\":[\"address\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"update_royalty_receiver\",\"inputs\":[\"address\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"transfer_ownership\",\"inputs\":[\"address\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"update_xlist\",\"inputs\":[\"address\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"owner_of\",\"inputs\":[\"bytes\"],\"output\":\"address\",\"view\":true,\"payable\":false},{\"name\":\"creator_of\",\"inputs\":[\"bytes\"],\"output\":\"address\",\"view\":true,\"payable\":false},{\"name\":\"royalty_of\",\"inputs\":[\"bytes\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"token_uri\",\"inputs\":[\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"collection_circle_count\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"token_circle_count\",\"inputs\":[\"bytes\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"token_circle_uri\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"collection_of\",\"inputs\":[\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"balance_of\",\"inputs\":[\"address\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_approved\",\"inputs\":[\"bytes\"],\"output\":\"address\",\"view\":true,\"payable\":false},{\"name\":\"total_supply\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"collection_name\",\"inputs\":[],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"symbol\",\"inputs\":[],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"is_approved_or_owner\",\"inputs\":[\"bytes\",\"address\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_minted_by_wallet\",\"inputs\":[\"address\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_pending_proceeds\",\"inputs\":[\"address\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_reserve\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_token_info\",\"inputs\":[\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_token_circle_info\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_collection_circle_info\",\"inputs\":[\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_contract_info\",\"inputs\":[],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_phase_info\",\"inputs\":[],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_wallet_state\",\"inputs\":[\"address\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"tokens_of\",\"inputs\":[\"address\",\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_tokens_page\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_holders_page\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_event_log\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false}],\"events\":[{\"name\":\"Initialized\",\"fields\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"max_supply\",\"type\":\"bytes\"}]},{\"name\":\"Minted\",\"fields\":[{\"name\":\"minter\",\"type\":\"address\"},{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"phase\",\"type\":\"bytes\"},{\"name\":\"price\",\"type\":\"bytes\"}]},{\"name\":\"Airdropped\",\"fields\":[{\"name\":\"recipient\",\"type\":\"address\"},{\"name\":\"token_id\",\"type\":\"bytes\"}]},{\"name\":\"Transferred\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"from\",\"type\":\"address\"},{\"name\":\"to\",\"type\":\"address\"}]},{\"name\":\"Approved\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"approved\",\"type\":\"address\"}]},{\"name\":\"ApprovalRevoked\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"}]},{\"name\":\"OperatorSet\",\"fields\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"operator\",\"type\":\"address\"},{\"name\":\"approved\",\"type\":\"bytes\"}]},{\"name\":\"Revealed\",\"fields\":[{\"name\":\"base_uri\",\"type\":\"string\"}]},{\"name\":\"BaseUriUpdated\",\"fields\":[{\"name\":\"base_uri\",\"type\":\"string\"}]},{\"name\":\"CollectionCircleResourceSet\",\"fields\":[{\"name\":\"resource_id\",\"type\":\"bytes\"},{\"name\":\"base_uri\",\"type\":\"string\"},{\"name\":\"suffix\",\"type\":\"string\"},{\"name\":\"unrevealed_uri\",\"type\":\"string\"},{\"name\":\"access\",\"type\":\"string\"}]},{\"name\":\"CollectionCircleResourceCleared\",\"fields\":[{\"name\":\"resource_id\",\"type\":\"bytes\"}]},{\"name\":\"PhaseOverrideSet\",\"fields\":[{\"name\":\"phase\",\"type\":\"bytes\"}]},{\"name\":\"PhaseOverrideCleared\",\"fields\":[]},{\"name\":\"ProceedsClaimed\",\"fields\":[{\"name\":\"recipient\",\"type\":\"address\"},{\"name\":\"amount\",\"type\":\"bytes\"}]},{\"name\":\"XpectrumWalletUpdated\",\"fields\":[{\"name\":\"new_wallet\",\"type\":\"address\"}]},{\"name\":\"OwnershipTransferred\",\"fields\":[{\"name\":\"old_owner\",\"type\":\"address\"},{\"name\":\"new_owner\",\"type\":\"address\"}]},{\"name\":\"UnrevealedUriSet\",\"fields\":[{\"name\":\"uri\",\"type\":\"string\"}]},{\"name\":\"Paused\",\"fields\":[]},{\"name\":\"Unpaused\",\"fields\":[]},{\"name\":\"PhasePriceUpdated\",\"fields\":[{\"name\":\"gtd\",\"type\":\"bytes\"},{\"name\":\"fcfs\",\"type\":\"bytes\"},{\"name\":\"pub\",\"type\":\"bytes\"}]},{\"name\":\"PhaseCapUpdated\",\"fields\":[{\"name\":\"gtd_cap\",\"type\":\"bytes\"},{\"name\":\"fcfs_cap\",\"type\":\"bytes\"},{\"name\":\"pub_cap\",\"type\":\"bytes\"}]},{\"name\":\"PhaseWalletCapUpdated\",\"fields\":[{\"name\":\"gtd_wallet\",\"type\":\"bytes\"},{\"name\":\"fcfs_wallet\",\"type\":\"bytes\"},{\"name\":\"pub_wallet\",\"type\":\"bytes\"}]},{\"name\":\"PhaseEpochsUpdated\",\"fields\":[{\"name\":\"gtd_start\",\"type\":\"bytes\"},{\"name\":\"gtd_end\",\"type\":\"bytes\"},{\"name\":\"fcfs_start\",\"type\":\"bytes\"},{\"name\":\"fcfs_end\",\"type\":\"bytes\"},{\"name\":\"pub_start\",\"type\":\"bytes\"},{\"name\":\"pub_end\",\"type\":\"bytes\"}]},{\"name\":\"TrustedFactoryUpdated\",\"fields\":[{\"name\":\"new_factory\",\"type\":\"address\"}]}]}",
+  "version": "1.0 Rehovot",
+  "verification": {
+    "schema": "aml_safety_report_v1",
+    "engine": "aml_ast_verifier",
+    "proof_model": "formal/coq/aml_value_safety_model.v",
+    "proof_gate": "scripts/check_aml_formal.sh",
+    "program_name": "XpectrumGenesis",
+    "verified": true,
+    "safety": "warning",
+    "errors": 0,
+    "warnings": 4,
+    "trace": [
+      {
+        "code": "signed_value_storage",
+        "title": "value-like storage must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_parameter",
+        "title": "value-moving public parameters must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_flow",
+        "title": "signed values must not flow into value-like storage writes",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_arithmetic_range_not_proven",
+        "title": "unsigned arithmetic writes must prove range safety",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "supply_invariant_unproven",
+        "title": "balance and total supply writes should preserve conservation",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_parameter_without_positive_guard",
+        "title": "unsigned value parameters should reject zero unless zero is meaningful",
+        "status": "warning",
+        "severity": "warning",
+        "findings": 4
+      },
+      {
+        "code": "unchecked_transfer_result",
+        "title": "native transfer result should be checked",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      }
+    ],
+    "function_summaries": [
+      {
+        "name": "only_initialized",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "only_owner_or_admin",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_bal_add",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "balances"
+        ],
+        "transitive_writes": [
+          "balances"
+        ],
+        "value_writes": [
+          "balances"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "_bal_sub",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "balances"
+        ],
+        "transitive_writes": [
+          "balances"
+        ],
+        "value_writes": [
+          "balances"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "_credit",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "pending_proceeds"
+        ],
+        "transitive_writes": [
+          "pending_proceeds"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_reserve_add",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "reserve"
+        ],
+        "transitive_writes": [
+          "reserve"
+        ],
+        "value_writes": [
+          "reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "_reserve_sub",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "reserve"
+        ],
+        "transitive_writes": [
+          "reserve"
+        ],
+        "value_writes": [
+          "reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "_index_add",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "owner_token_count",
+          "owner_token_index",
+          "owner_token_position"
+        ],
+        "transitive_writes": [
+          "owner_token_count",
+          "owner_token_index",
+          "owner_token_position"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_index_remove",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "owner_token_count",
+          "owner_token_index",
+          "owner_token_position"
+        ],
+        "transitive_writes": [
+          "owner_token_count",
+          "owner_token_index",
+          "owner_token_position"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_holder_add",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "holder_count",
+          "holder_list",
+          "holder_pos"
+        ],
+        "transitive_writes": [
+          "holder_count",
+          "holder_list",
+          "holder_pos"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_holder_remove",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [
+          "holder_count",
+          "holder_list",
+          "holder_pos"
+        ],
+        "transitive_writes": [
+          "holder_count",
+          "holder_list",
+          "holder_pos"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_log_mint",
+        "visibility": "private",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_log_transfer",
+        "visibility": "private",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "init",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address"
+        ],
+        "direct_writes": [
+          "admin",
+          "fcfs_wallet_cap",
+          "gtd_wallet_cap",
+          "initialized",
+          "max_per_wallet",
+          "max_supply",
+          "name",
+          "owner",
+          "public_wallet_cap",
+          "royalty_bps",
+          "royalty_receiver",
+          "symbol",
+          "trusted_factory",
+          "unrevealed_uri",
+          "xlist_addr",
+          "xpectrum_wallet"
+        ],
+        "transitive_writes": [
+          "admin",
+          "fcfs_wallet_cap",
+          "gtd_wallet_cap",
+          "initialized",
+          "max_per_wallet",
+          "max_supply",
+          "name",
+          "owner",
+          "public_wallet_cap",
+          "royalty_bps",
+          "royalty_receiver",
+          "symbol",
+          "trusted_factory",
+          "unrevealed_uri",
+          "xlist_addr",
+          "xpectrum_wallet"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_current_phase",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "mint",
+        "visibility": "public",
+        "direct_calls": [
+          "_bal_add",
+          "_credit",
+          "_holder_add",
+          "_index_add",
+          "_log_mint",
+          "_reserve_add",
+          "_reserve_sub",
+          "call",
+          "get_current_phase",
+          "only_initialized",
+          "transfer"
+        ],
+        "direct_writes": [
+          "fcfs_minted",
+          "gtd_minted",
+          "minted_per_wallet",
+          "phase_minted_by",
+          "public_minted",
+          "tokens",
+          "total_minted"
+        ],
+        "transitive_writes": [
+          "approvals",
+          "balances",
+          "event_log",
+          "event_log_count",
+          "fcfs_minted",
+          "gtd_minted",
+          "holder_count",
+          "holder_list",
+          "holder_pos",
+          "minted_per_wallet",
+          "owner_token_count",
+          "owner_token_index",
+          "owner_token_position",
+          "pending_proceeds",
+          "phase_minted_by",
+          "public_minted",
+          "reserve",
+          "tokens",
+          "total_minted"
+        ],
+        "value_writes": [
+          "balances",
+          "reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "airdrop",
+        "visibility": "public",
+        "direct_calls": [
+          "_bal_add",
+          "_holder_add",
+          "_index_add",
+          "_log_mint",
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "airdropped_count",
+          "minted_per_wallet",
+          "tokens",
+          "total_minted"
+        ],
+        "transitive_writes": [
+          "airdropped_count",
+          "balances",
+          "event_log",
+          "event_log_count",
+          "holder_count",
+          "holder_list",
+          "holder_pos",
+          "minted_per_wallet",
+          "owner_token_count",
+          "owner_token_index",
+          "owner_token_position",
+          "tokens",
+          "total_minted"
+        ],
+        "value_writes": [
+          "balances"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "transfer",
+        "visibility": "public",
+        "direct_calls": [
+          "_bal_add",
+          "_bal_sub",
+          "_holder_add",
+          "_holder_remove",
+          "_index_add",
+          "_index_remove",
+          "_log_transfer",
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "approvals",
+          "tokens"
+        ],
+        "transitive_writes": [
+          "approvals",
+          "balances",
+          "event_log",
+          "event_log_count",
+          "holder_count",
+          "holder_list",
+          "holder_pos",
+          "owner_token_count",
+          "owner_token_index",
+          "owner_token_position",
+          "tokens"
+        ],
+        "value_writes": [
+          "balances"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "transfer_from",
+        "visibility": "public",
+        "direct_calls": [
+          "_bal_add",
+          "_bal_sub",
+          "_holder_add",
+          "_holder_remove",
+          "_index_add",
+          "_index_remove",
+          "_log_transfer",
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "approvals",
+          "tokens"
+        ],
+        "transitive_writes": [
+          "approvals",
+          "balances",
+          "event_log",
+          "event_log_count",
+          "holder_count",
+          "holder_list",
+          "holder_pos",
+          "owner_token_count",
+          "owner_token_index",
+          "owner_token_position",
+          "tokens"
+        ],
+        "value_writes": [
+          "balances"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "approve",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "approvals"
+        ],
+        "transitive_writes": [
+          "approvals"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "revoke_approval",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "approvals"
+        ],
+        "transitive_writes": [
+          "approvals"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_operator",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "operator_approvals"
+        ],
+        "transitive_writes": [
+          "operator_approvals"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "claim_proceeds",
+        "visibility": "public",
+        "direct_calls": [
+          "_reserve_sub",
+          "only_initialized",
+          "transfer"
+        ],
+        "direct_writes": [
+          "pending_proceeds"
+        ],
+        "transitive_writes": [
+          "approvals",
+          "balances",
+          "event_log",
+          "event_log_count",
+          "holder_count",
+          "holder_list",
+          "holder_pos",
+          "owner_token_count",
+          "owner_token_index",
+          "owner_token_position",
+          "pending_proceeds",
+          "reserve",
+          "tokens"
+        ],
+        "value_writes": [
+          "balances",
+          "reserve"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "reveal",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "base_uri",
+          "revealed"
+        ],
+        "transitive_writes": [
+          "base_uri",
+          "revealed"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "update_base_uri",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "base_uri"
+        ],
+        "transitive_writes": [
+          "base_uri"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_unrevealed_uri",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "unrevealed_uri"
+        ],
+        "transitive_writes": [
+          "unrevealed_uri"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "add_collection_circle_resource",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "circle_base_uri",
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_resource_count",
+          "circle_unrevealed_uri",
+          "circle_uri_suffix"
+        ],
+        "transitive_writes": [
+          "circle_base_uri",
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_resource_count",
+          "circle_unrevealed_uri",
+          "circle_uri_suffix"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_collection_circle_resource",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "circle_base_uri",
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_unrevealed_uri",
+          "circle_uri_suffix"
+        ],
+        "transitive_writes": [
+          "circle_base_uri",
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_unrevealed_uri",
+          "circle_uri_suffix"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "clear_collection_circle_resource",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "circle_base_uri",
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_unrevealed_uri",
+          "circle_uri_suffix"
+        ],
+        "transitive_writes": [
+          "circle_base_uri",
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_unrevealed_uri",
+          "circle_uri_suffix"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "update_phase_prices",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "fcfs_price",
+          "gtd_price",
+          "public_price"
+        ],
+        "transitive_writes": [
+          "fcfs_price",
+          "gtd_price",
+          "public_price"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "update_phase_caps",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "fcfs_cap",
+          "gtd_cap",
+          "public_cap"
+        ],
+        "transitive_writes": [
+          "fcfs_cap",
+          "gtd_cap",
+          "public_cap"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "update_phase_wallet_caps",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "fcfs_wallet_cap",
+          "gtd_wallet_cap",
+          "public_wallet_cap"
+        ],
+        "transitive_writes": [
+          "fcfs_wallet_cap",
+          "gtd_wallet_cap",
+          "public_wallet_cap"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "update_phase_epochs",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "fcfs_end_epoch",
+          "fcfs_start_epoch",
+          "gtd_end_epoch",
+          "gtd_start_epoch",
+          "public_end_epoch",
+          "public_start_epoch"
+        ],
+        "transitive_writes": [
+          "fcfs_end_epoch",
+          "fcfs_start_epoch",
+          "gtd_end_epoch",
+          "gtd_start_epoch",
+          "public_end_epoch",
+          "public_start_epoch"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_phase_override",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "phase_override_active",
+          "phase_override_value"
+        ],
+        "transitive_writes": [
+          "phase_override_active",
+          "phase_override_value"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "clear_phase_override",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "phase_override_active",
+          "phase_override_value"
+        ],
+        "transitive_writes": [
+          "phase_override_active",
+          "phase_override_value"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "pause",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "paused"
+        ],
+        "transitive_writes": [
+          "paused"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "unpause",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "paused"
+        ],
+        "transitive_writes": [
+          "paused"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_max_per_wallet",
+        "visibility": "public",
+        "direct_calls": [
+          "only_initialized",
+          "only_owner_or_admin"
+        ],
+        "direct_writes": [
+          "max_per_wallet"
+        ],
+        "transitive_writes": [
+          "max_per_wallet"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "update_xpectrum_wallet",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "xpectrum_wallet"
+        ],
+        "transitive_writes": [
+          "xpectrum_wallet"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "update_admin",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "admin"
+        ],
+        "transitive_writes": [
+          "admin"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_trusted_factory",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "trusted_factory"
+        ],
+        "transitive_writes": [
+          "trusted_factory"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "update_royalty_receiver",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "royalty_receiver"
+        ],
+        "transitive_writes": [
+          "royalty_receiver"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "transfer_ownership",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "owner"
+        ],
+        "transitive_writes": [
+          "owner"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "update_xlist",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address",
+          "only_initialized"
+        ],
+        "direct_writes": [
+          "xlist_addr"
+        ],
+        "transitive_writes": [
+          "xlist_addr"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "owner_of",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "creator_of",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "royalty_of",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "token_uri",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "collection_circle_count",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "token_circle_count",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "token_circle_uri",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "collection_of",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "balance_of",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_approved",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "total_supply",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "collection_name",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "symbol",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "is_approved_or_owner",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_minted_by_wallet",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_pending_proceeds",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_reserve",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_token_info",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_token_circle_info",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string",
+          "token_circle_uri"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_collection_circle_info",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_contract_info",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_phase_info",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_wallet_state",
+        "visibility": "public",
+        "direct_calls": [
+          "call",
+          "concat",
+          "get_current_phase",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "tokens_of",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_tokens_page",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_holders_page",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_event_log",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "constructor",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [
+          "airdropped_count",
+          "circle_resource_count",
+          "event_log_count",
+          "holder_count",
+          "initialized",
+          "owner",
+          "paused",
+          "phase_override_active",
+          "phase_override_value",
+          "reserve",
+          "revealed",
+          "total_minted"
+        ],
+        "transitive_writes": [
+          "airdropped_count",
+          "circle_resource_count",
+          "event_log_count",
+          "holder_count",
+          "initialized",
+          "owner",
+          "paused",
+          "phase_override_active",
+          "phase_override_value",
+          "reserve",
+          "revealed",
+          "total_minted"
+        ],
+        "value_writes": [
+          "reserve"
+        ],
+        "signed_params": []
+      }
+    ],
+    "invariants": [
+      {
+        "code": "supply_balance_conservation",
+        "kind": "derived",
+        "status": "not_applicable",
+        "expression": null,
+        "message": "program does not expose both balance and supply storage",
+        "fields": [
+          "balances"
+        ],
+        "functions": []
+      }
+    ],
+    "findings": [
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XpectrumGenesis",
+        "function_name": "transfer",
+        "state_field": null,
+        "parameter": "token_id"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XpectrumGenesis",
+        "function_name": "transfer_from",
+        "state_field": null,
+        "parameter": "token_id"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XpectrumGenesis",
+        "function_name": "get_approved",
+        "state_field": null,
+        "parameter": "token_id"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XpectrumGenesis",
+        "function_name": "is_approved_or_owner",
+        "state_field": null,
+        "parameter": "token_id"
+      }
+    ]
+  },
+  "certificate": {
+    "schema": "aml_bytecode_certificate_v1",
+    "compiler": "octra_aml",
+    "compiler_version": "1.0 Rehovot",
+    "verification_schema": "aml_safety_report_v1",
+    "source_mode": "single",
+    "source_hash": "bbc67d5b4bf78e2594f614da4ba6f5d24fe85e822e5de75b9085dc4df2c138c3",
+    "bytecode_hash": "9e17d6c97c9c5906117b9e3e4d7917d701cafc1c4adbd325d7a57342df353884",
+    "verification_hash": "0a5bfb14a58b31db0f79d5638aa1f6c94a6f228474622454a39916eaf150d557"
+  }
+}

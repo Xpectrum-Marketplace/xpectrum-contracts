@@ -1,0 +1,94 @@
+// XincineratorLog >> burns a caller's own tokens into the Xincinerator and logs them.
+// Grant it operator rights on the collection first, revoke after.
+
+contract XincineratorLog {
+
+  state {
+    incinerator: address
+    total_burned: u128
+    coll_burned: map[address]u128
+    is_burned: map[address]map[u128]u128
+    event_log: map[u128]string
+    event_log_count: u128
+  }
+
+  event Burned(collection: address, token_id: u128, owner: address, burn_epoch: u128)
+
+  constructor(incinerator_addr: address) {
+    require(is_address(incinerator_addr) && incinerator_addr != 0, "xinc: invalid target")
+    self.incinerator = incinerator_addr
+    self.total_burned = 0
+    self.event_log_count = 0
+  }
+
+  private fn _log_burn(collection: address, token_id: u128, owner: address) {
+    let entry = concat("burn|", to_string(collection))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(owner))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    self.event_log[self.event_log_count] = entry
+    self.event_log_count += 1
+  }
+
+  fn burn_range(collection: address, start_id: u128, count: u128): u128 {
+    require(is_address(collection) && collection != 0, "xinc: invalid collection")
+    require(count > 0 && count <= 20, "xinc: count must be 1-20")
+
+    let burned_n = 0
+    let i = 0
+    for i in 0..count {
+      let tid = start_id + i
+      require(self.is_burned[collection][tid] == 0, "xinc: already burned")
+
+      let holder = call(collection, "owner_of", tid)
+      require(holder == caller, "xinc: not token owner")
+
+      let ok: bool = call(collection, "transfer_from", caller, self.incinerator, tid)
+      require(ok, "xinc: transfer failed")
+
+      self.is_burned[collection][tid] = 1
+      self.coll_burned[collection] += 1
+      self.total_burned += 1
+      burned_n += 1
+      _log_burn(collection, tid, caller)
+      emit Burned(collection, tid, caller, epoch)
+    }
+    return burned_n
+  }
+
+  view fn get_incinerator(): address {
+    return self.incinerator
+  }
+
+  // counts every collection this was pointed at, use get_burned_count for one
+  view fn get_total_burned(): u128 {
+    return self.total_burned
+  }
+
+  view fn get_burned_count(collection: address): u128 {
+    return self.coll_burned[collection]
+  }
+
+  view fn token_is_burned(collection: address, token_id: u128): u128 {
+    return self.is_burned[collection][token_id]
+  }
+
+  view fn get_event_log(from: u128, count: u128): string {
+    let total = self.event_log_count
+    let out = to_string(total)
+    let safe_count = count
+    if safe_count > 50 { safe_count = 50 }
+    let i = 0
+    for i in 0..safe_count {
+      let idx = from + i
+      if idx < total {
+        out = concat(out, "~")
+        out = concat(out, self.event_log[idx])
+      }
+    }
+    return out
+  }
+}

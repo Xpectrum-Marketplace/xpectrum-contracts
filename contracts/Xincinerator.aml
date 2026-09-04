@@ -1,0 +1,21 @@
+// Xincinerator >> burn address for Xpectrum collections.
+// Tokens transferred here stay here. No entry points, no calls out.
+
+contract Xincinerator {
+
+  state {
+    deployed_epoch: u128
+  }
+
+  constructor() {
+    self.deployed_epoch = epoch
+  }
+
+  view fn get_version(): u128 {
+    return 1
+  }
+
+  view fn get_deployed_epoch(): u128 {
+    return self.deployed_epoch
+  }
+}

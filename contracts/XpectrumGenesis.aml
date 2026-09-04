@@ -1,10 +1,17 @@
-// XpectrumGenesis >> Beta Genesis collection (root genesis, 3-phase mint)
-// holding a Beta Genesis token grants GTD access on future Xcollection drops.
+// XpectrumGenesis (Beta Genesis) >> root genesis collection (3-phase mint, no parent injection)
+// rev (2026-06-11): migrated to the formally verified AML dialect.
+//   u128 + checked-arith helpers + guarded subtraction; phase-epoch underflow guards;
+//   native transfer() checked. ROOT genesis: no genesis_mint/injection (init takes no genesis param).
+//   Holding a Beta Genesis token grants GTD access on future Xcollection drops.
 //
-// formally verified (aml_safety_report_v1, errors: 0, warnings: 4)
-// bytecode_hash:     b8238ac3ab9df05d1889bff0e8d008709009da76496ee2d4f2772e53aa64db7a
-// verification_hash: 0a5bfb14a58b31db0f79d5638aa1f6c94a6f228474622454a39916eaf150d557
-
+// rev (2026-07-21): checked mint-cost mul, get_approved bounds, dropped dead guards.
+//
+// FORMAL VERIFICATION (octra_compileAml, "1.0 Rehovot", 2026-07-21):
+//   verified: True   safety: "warning"   errors: 0   warnings: 4
+//   bytecode_hash:     9e17d6c97c9c5906117b9e3e4d7917d701cafc1c4adbd325d7a57342df353884
+//   verification_hash: 0a5bfb14a58b31db0f79d5638aa1f6c94a6f228474622454a39916eaf150d557
+//   (source_hash in XpectrumGenesis_verification.json)
+//
 contract XpectrumGenesis {
 
   struct TokenInfo {
@@ -328,6 +335,7 @@ contract XpectrumGenesis {
     }
 
     let cost = price * quantity
+    require(cost / quantity == price, "genesis: cost overflow")
     require(value >= cost, "genesis: insufficient payment")
 
     let fee = cost * PLATFORM_FEE_BPS / 10000
@@ -621,7 +629,6 @@ contract XpectrumGenesis {
   fn update_phase_prices(gtd: u128, fcfs: u128, pub_price: u128): bool {
     only_initialized()
     only_owner_or_admin()
-    require(true, "genesis: invalid price")
     self.gtd_price = gtd
     self.fcfs_price = fcfs
     self.public_price = pub_price
@@ -632,7 +639,6 @@ contract XpectrumGenesis {
   fn update_phase_caps(gtd_cap: u128, fcfs_cap: u128, pub_cap: u128): bool {
     only_initialized()
     only_owner_or_admin()
-    require(true, "genesis: invalid cap")
     require(gtd_cap >= self.gtd_minted, "genesis: cannot lower GTD cap below minted amount")
     require(fcfs_cap >= self.fcfs_minted, "genesis: cannot lower FCFS cap below minted amount")
     require(pub_cap >= self.public_minted, "genesis: cannot lower public cap below minted amount")
@@ -861,6 +867,7 @@ contract XpectrumGenesis {
   }
 
   view fn get_approved(token_id: u128): address {
+    require(token_id < self.total_minted, "genesis: token not found")
     return self.approvals[token_id]
   }
 

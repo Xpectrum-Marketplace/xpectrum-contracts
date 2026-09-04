@@ -1,16 +1,11 @@
-// Xcollection v3 >> Xpectrum drop contract
-// 3-phase mint (GTD/FCFS/public), genesis injection, provenance, holder enumeration, trusted-factory auth.
+// Xcollection_v3: the Xpectrum collection contract.
+// 3-phase mint (GTD, FCFS, public), xholder injection, provenance, holder enumeration, trusted-factory auth.
+// Token ids are 0-indexed, so the first mint is id 0.
+// total_minted only counts up. total_supply() is total_minted - burned_count, derived on read rather than stored.
+// Burned tokens have owner 0. Transfers refuse to == 0, so that state means burned and nothing else.
+// trigger_sweep is permissionless: once GTD ends anyone may return the unclaimed xholder reserve to the pool.
 //
-// get_contract_info()                  >> name | symbol | total_minted | max_supply | royalty_bps | owner | revealed
-// get_phase_info()                     >> gtd_price | gtd_start | gtd_end | gtd_cap | gtd_minted | gtd_wallet_cap | fcfs_price | fcfs_start | fcfs_end | fcfs_cap | fcfs_minted | fcfs_wallet_cap | pub_price | pub_start | pub_end | pub_cap | pub_minted | pub_wallet_cap | injection_cap | genesis_minted_count
-// get_genesis_status()                 >> genesis_minted_count | injection_cap | genesis_contract | injection_swept
-// get_wallet_state(wallet)             >> paused | phase | minted_by_wallet | wl_gtd | wl_fcfs | pending_proceeds
-// get_token_info(id)                   >> id | owner | creator | name | royalty_bps | minted_epoch | uri
-// get_collection_circle_info(rid)      >> resource_id | base_uri | suffix | unrevealed_uri | access | active | version
-// get_holders_page(offset, limit)      >> total_holders | addr0 | addr1 | ...
-//
-// formally verified (aml_safety_report_v1, errors: 0, warnings: 5)
-// bytecode_hash + verification_hash: see Xcollection_v3_verification.json
+// get_contract_info >> name | symbol | total_minted | max_supply | royalty_bps | owner | revealed | burned
 
 contract Xcollection {
 
@@ -21,9 +16,10 @@ contract Xcollection {
 
   event Initialized(owner: address, name: string, max_supply: u128, injection_cap: u128)
   event Minted(minter: address, token_id: u128, phase: u128, price: u128)
-  event GenesisMint(minter: address, token_id: u128, genesis_id: u128, genesis_minted_count: u128, injection_cap: u128)
+  event XholderMint(minter: address, token_id: u128, xpectra_id: u128, xholder_minted_count: u128, injection_cap: u128)
   event Airdropped(recipient: address, token_id: u128)
   event Transferred(token_id: u128, from: address, to: address)
+  event Burned(token_id: u128, owner: address, total_supply: u128)
   event Approved(token_id: u128, approved: address)
   event ApprovalRevoked(token_id: u128)
   event OperatorSet(owner: address, operator: address, approved: u128)
@@ -42,9 +38,10 @@ contract Xcollection {
 
   const PLATFORM_FEE_BPS: u128 = 250
   const MAX_ROYALTY_BPS: u128  = 1000
-  const MAX_INJECTION: u128    = 222
+  const MAX_INJECTION: u128    = 111
   const INJECTION_BPS: u128    = 2000
-  const MIN_PHASE_EPOCHS: u128 = 360
+  // 40 minutes at the fastest rate the chain has held, about 10s an epoch, and longer whenever it runs slower.
+  const MIN_PHASE_EPOCHS: u128 = 240
   const MAX_GTD_EPOCHS: u128   = 259200
   const MAX_FCFS_EPOCHS: u128  = 259200
 
@@ -93,11 +90,11 @@ contract Xcollection {
     public_minted: u128
     public_wallet_cap: u128
     xlist_addr: address
-    genesis_contract: address
+    xpectra_contract: address
     injection_cap: u128
-    genesis_minted_count: u128
-    used_genesis_ids: map[u128]u128
-    genesis_claimed: map[address]u128
+    xholder_minted_count: u128
+    used_xpectra_ids: map[u128]u128
+    xholder_claimed: map[address]u128
     injection_swept: u128
     airdropped_count: u128
     balances: map[address]u128
@@ -111,6 +108,7 @@ contract Xcollection {
     owner_token_count: map[address]u128
     event_log: map[u128]string
     event_log_count: u128
+    burned_count: u128
     provenance_hash: string
     trusted_factory: address
     // holder enumeration index (swap-and-pop); holder_pos is 1-indexed, 0 = not a holder
@@ -129,7 +127,7 @@ contract Xcollection {
     self.phase_override_active = 0
     self.phase_override_value = 3
     self.reserve = 0
-    self.genesis_minted_count = 0
+    self.xholder_minted_count = 0
     self.injection_swept = 0
     self.airdropped_count = 0
     self.event_log_count = 0
@@ -155,6 +153,7 @@ contract Xcollection {
   }
 
   private fn _index_remove(from: address, token_id: u128) {
+    require(self.owner_token_count[from] >= 1, "xcollection: token index empty")
     let pos = self.owner_token_position[from][token_id]
     let last_idx = self.owner_token_count[from] - 1
     if pos != last_idx {
@@ -162,6 +161,8 @@ contract Xcollection {
       self.owner_token_index[from][pos] = last_token
       self.owner_token_position[from][last_token] = pos
     }
+    self.owner_token_index[from][last_idx] = 0
+    self.owner_token_position[from][token_id] = 0
     self.owner_token_count[from] = last_idx
   }
 
@@ -185,6 +186,16 @@ contract Xcollection {
     entry = concat(entry, to_string(from))
     entry = concat(entry, "|")
     entry = concat(entry, to_string(to))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(epoch))
+    self.event_log[self.event_log_count] = entry
+    self.event_log_count += 1
+  }
+
+  private fn _log_burn(token_id: u128, from: address) {
+    let entry = concat("burn|", to_string(token_id))
+    entry = concat(entry, "|")
+    entry = concat(entry, to_string(from))
     entry = concat(entry, "|")
     entry = concat(entry, to_string(epoch))
     self.event_log[self.event_log_count] = entry
@@ -255,7 +266,7 @@ contract Xcollection {
     xpectrum_addr: address,
     creator: address,
     xlist: address,
-    genesis: address,
+    xpectra: address,
     gtd_wallet: u128,
     fcfs_wallet: u128,
     pub_wallet: u128
@@ -265,7 +276,7 @@ contract Xcollection {
     require(is_address(xpectrum_addr) && xpectrum_addr != 0, "xcollection: invalid platform addr")
     require(is_address(creator) && creator != 0, "xcollection: invalid creator")
     require(is_address(xlist) && xlist != 0, "xcollection: invalid xlist addr")
-    require(is_address(genesis) && genesis != 0, "xcollection: invalid genesis addr")
+    require(is_address(xpectra) && xpectra != 0, "xcollection: invalid xpectra addr")
     require(collection_max_supply > 0, "xcollection: invalid supply")
     require(collection_royalty_bps <= MAX_ROYALTY_BPS, "xcollection: invalid royalty")
     require(collection_max_per_wallet > 0, "xcollection: invalid wallet cap")
@@ -287,7 +298,7 @@ contract Xcollection {
     self.xpectrum_wallet = xpectrum_addr
     self.royalty_receiver = creator
     self.xlist_addr = xlist
-    self.genesis_contract = genesis
+    self.xpectra_contract = xpectra
     self.injection_cap = cap
     self.gtd_wallet_cap = gtd_wallet
     self.fcfs_wallet_cap = fcfs_wallet
@@ -327,7 +338,7 @@ contract Xcollection {
     let price = 0
     if phase == 0 {
       let wl = call(self.xlist_addr, "is_whitelisted", 0, caller)
-      require(wl == 1, "xcollection: not on GTD list -- use genesis_mint if you hold a genesis NFT")
+      require(wl == 1, "xcollection: not on GTD list")
       require(self.phase_minted_by[0][caller] + quantity <= self.gtd_wallet_cap, "xcollection: GTD phase wallet cap exceeded")
       require(self.gtd_minted + quantity <= self.gtd_cap, "xcollection: GTD cap reached")
       price = self.gtd_price
@@ -352,6 +363,7 @@ contract Xcollection {
     }
 
     let cost = price * quantity
+    require(cost / quantity == price, "xcollection: cost overflow")
     require(value >= cost, "xcollection: insufficient payment")
 
     let fee = cost * PLATFORM_FEE_BPS / 10000
@@ -386,31 +398,29 @@ contract Xcollection {
     return true
   }
 
-  fn genesis_mint(genesis_id: u128): bool {
+  fn xholder_mint(xpectra_id: u128): bool {
     only_initialized()
     require(self.paused == 0, "xcollection: minting paused")
     require(self.total_minted + 1 <= self.max_supply, "xcollection: exceeds max supply")
     require(self.minted_per_wallet[caller] + 1 <= self.max_per_wallet, "xcollection: global wallet cap exceeded")
 
     let phase = get_current_phase()
-    require(phase == 0, "xcollection: genesis mint only available during GTD phase")
-    require(self.injection_swept == 0, "xcollection: genesis injection already swept")
-    require(self.used_genesis_ids[genesis_id] == 0, "xcollection: genesis token already used")
-    require(self.genesis_minted_count < self.injection_cap, "xcollection: genesis injection full")
-    // Injection fairness: ONE Genesis claim per wallet, regardless of how many Genesis NFTs it
-    // holds or the creator's GTD per-wallet cap, so the reserve spreads across distinct holders.
-    require(self.genesis_claimed[caller] == 0, "xcollection: one Genesis injection mint per wallet")
+    require(phase == 0, "xcollection: xholder mint only available during GTD phase")
+    require(self.injection_swept == 0, "xcollection: xholder injection already swept")
+    require(self.used_xpectra_ids[xpectra_id] == 0, "xcollection: xpectra token already used")
+    require(self.xholder_minted_count < self.injection_cap, "xcollection: xholder injection full")
+    // one claim per wallet however many Xpectra it holds, so the reserve spreads across distinct holders
+    require(self.xholder_claimed[caller] == 0, "xcollection: one xholder injection mint per wallet")
 
-    let token_owner = call(self.genesis_contract, "owner_of", genesis_id)
-    require(token_owner == caller, "xcollection: caller does not own this genesis token")
+    // mark state before the external call
+    self.used_xpectra_ids[xpectra_id] = 1
+    self.xholder_claimed[caller] = 1
+    self.xholder_minted_count += 1
 
-    self.used_genesis_ids[genesis_id] = 1
-    self.genesis_claimed[caller] = 1
-    self.genesis_minted_count += 1
-    // Genesis intentionally does NOT touch gtd_minted / phase_minted_by[0] / gtd_wallet_cap.
-    // The injection is a SEPARATE pool (own injection_cap, summed separately in the supply
-    // guard); counting it against gtd_cap eroded the whitelist allocation. It is bounded by
-    // injection_cap + genesis_claimed (1/wallet) + the global max_per_wallet only.
+    let token_owner = call(self.xpectra_contract, "owner_of", xpectra_id)
+    require(token_owner == caller, "xcollection: caller does not own this xpectra token")
+    // the injection is its own pool with its own cap, so it deliberately leaves gtd_minted and the GTD wallet cap alone.
+    // bounded by injection_cap, one claim per wallet, and the global max_per_wallet.
 
     let cost = self.gtd_price
     require(value >= cost, "xcollection: insufficient payment")
@@ -432,7 +442,7 @@ contract Xcollection {
     _index_add(caller, token_id)
     _log_mint(token_id, caller, 0, self.gtd_price)
 
-    emit GenesisMint(caller, token_id, genesis_id, self.genesis_minted_count, self.injection_cap)
+    emit XholderMint(caller, token_id, xpectra_id, self.xholder_minted_count, self.injection_cap)
     emit Transferred(token_id, 0, caller)
 
     if value > cost {
@@ -449,8 +459,8 @@ contract Xcollection {
     require(self.injection_swept == 0, "xcollection: injection already swept")
     require(self.gtd_end_epoch > 0 && epoch >= self.gtd_end_epoch, "xcollection: GTD phase has not ended yet")
 
-    require(self.injection_cap >= self.genesis_minted_count, "xcollection: injection underflow")
-    let unclaimed = self.injection_cap - self.genesis_minted_count
+    require(self.injection_cap >= self.xholder_minted_count, "xcollection: injection underflow")
+    let unclaimed = self.injection_cap - self.xholder_minted_count
     if unclaimed > 0 {
       self.public_cap += unclaimed
     }
@@ -497,16 +507,44 @@ contract Xcollection {
     if count > 19 && is_address(addr_19) && addr_19 != 0 { let tid = self.total_minted  self.total_minted += 1  actual += 1  self.tokens[tid].owner = addr_19  self.tokens[tid].minted_epoch = epoch  _bal_add(addr_19, 1)  _holder_add(addr_19)  self.minted_per_wallet[addr_19] += 1  _index_add(addr_19, tid)  _log_mint(tid, addr_19, 3, 0)  emit Minted(addr_19, tid, 3, 0)  emit Airdropped(addr_19, tid)  emit Transferred(tid, 0, addr_19) }
 
     self.airdropped_count += actual
-    require(actual == count, "xcollection: address mismatch -- all addresses up to count must be valid and non-zero")
+    require(actual == count, "xcollection: address mismatch")
+    return true
+  }
+
+  fn burn(token_id: u128): bool {
+    only_initialized()
+    require(token_id < self.total_minted, "xcollection: token not found")
+
+    let current_owner = self.tokens[token_id].owner
+    require(current_owner != 0, "xcollection: token burned")
+    require(caller == current_owner, "xcollection: not owner")
+
+    self.tokens[token_id].owner = 0
+    self.approvals[token_id] = 0
+    _bal_sub(current_owner, 1)
+    _index_remove(current_owner, token_id)
+    if self.balances[current_owner] == 0 { _holder_remove(current_owner) }
+
+    let nb: u128 = self.burned_count + 1
+    require(nb > self.burned_count, "xcollection: burn counter overflow")
+    self.burned_count = nb
+
+    require(self.total_minted >= self.burned_count, "xcollection: supply underflow")
+    let supply_after: u128 = self.total_minted - self.burned_count
+
+    _log_burn(token_id, current_owner)
+    emit Transferred(token_id, current_owner, 0)
+    emit Burned(token_id, current_owner, supply_after)
     return true
   }
 
   fn transfer(to: address, token_id: u128): bool {
     only_initialized()
     require(token_id < self.total_minted, "xcollection: token not found")
-    require(is_address(to) && to != 0, "xcollection: invalid address")
+    assert_address(to)
 
     let current_owner = self.tokens[token_id].owner
+    require(current_owner != 0, "xcollection: token burned")
     require(caller == current_owner, "xcollection: not owner")
     require(to != current_owner, "xcollection: already owner")
 
@@ -531,6 +569,7 @@ contract Xcollection {
     require(is_address(to) && to != 0, "xcollection: invalid address")
 
     let current_owner = self.tokens[token_id].owner
+    require(current_owner != 0, "xcollection: token burned")
     require(from == current_owner, "xcollection: from is not owner")
     require(to != current_owner, "xcollection: already owner")
 
@@ -561,6 +600,7 @@ contract Xcollection {
     require(is_address(approved) && approved != 0, "xcollection: use revoke_approval to clear")
 
     let current_owner = self.tokens[token_id].owner
+    require(current_owner != 0, "xcollection: token burned")
     let is_op = self.operator_approvals[current_owner][caller]
     require(caller == current_owner || is_op == 1, "xcollection: not authorized")
 
@@ -574,6 +614,7 @@ contract Xcollection {
     require(token_id < self.total_minted, "xcollection: token not found")
 
     let current_owner = self.tokens[token_id].owner
+    require(current_owner != 0, "xcollection: token burned")
     let is_op = self.operator_approvals[current_owner][caller]
     require(caller == current_owner || is_op == 1, "xcollection: not authorized")
 
@@ -585,7 +626,7 @@ contract Xcollection {
   fn set_operator(operator: address, approved: u128): bool {
     only_initialized()
     require(operator != caller, "xcollection: cannot self-operate")
-    require(is_address(operator) && operator != 0, "xcollection: invalid operator")
+    assert_address(operator)
     require(approved == 0 || approved == 1, "xcollection: approved must be 0 or 1")
 
     self.operator_approvals[caller][operator] = approved
@@ -632,7 +673,7 @@ contract Xcollection {
   fn set_trusted_factory(new_factory: address): bool {
     only_initialized()
     require(caller == self.admin, "xcollection: only admin")
-    require(is_address(new_factory), "xcollection: invalid address")
+    assert_address(new_factory)
     self.trusted_factory = new_factory
     emit TrustedFactoryUpdated(new_factory)
     return true
@@ -670,7 +711,7 @@ contract Xcollection {
     return true
   }
 
-  fn get_provenance_hash(): string {
+  view fn get_provenance_hash(): string {
     return self.provenance_hash
   }
 
@@ -720,7 +761,6 @@ contract Xcollection {
   fn update_phase_prices(gtd: u128, fcfs: u128, pub_price: u128): bool {
     only_initialized()
     only_owner_or_admin()
-    require(true, "xcollection: invalid price")
     self.gtd_price = gtd
     self.fcfs_price = fcfs
     self.public_price = pub_price
@@ -730,7 +770,6 @@ contract Xcollection {
   fn update_phase_caps(gtd_cap: u128, fcfs_cap: u128, pub_cap: u128): bool {
     only_initialized()
     only_owner_or_admin()
-    require(true, "xcollection: invalid cap")
     require(gtd_cap >= self.gtd_minted, "xcollection: cannot lower GTD cap below minted amount")
     require(fcfs_cap >= self.fcfs_minted, "xcollection: cannot lower FCFS cap below minted amount")
     require(pub_cap >= self.public_minted, "xcollection: cannot lower public cap below minted amount")
@@ -769,9 +808,9 @@ contract Xcollection {
     let fcfs_duration = fcfs_end - fcfs_start
     let pub_duration = pub_end - pub_start
 
-    require(gtd_duration >= MIN_PHASE_EPOCHS, "xcollection: GTD phase too short (min 1 hour)")
-    require(gtd_duration <= MAX_GTD_EPOCHS, "xcollection: GTD phase too long (max 30 days)")
-    require(pub_duration >= MIN_PHASE_EPOCHS, "xcollection: public phase too short (min 1 hour)")
+    require(gtd_duration >= MIN_PHASE_EPOCHS, "xcollection: GTD phase too short (min 40 minutes)")
+    require(gtd_duration <= MAX_GTD_EPOCHS, "xcollection: GTD phase too long (max about a month)")
+    require(pub_duration >= MIN_PHASE_EPOCHS, "xcollection: public phase too short (min 40 minutes)")
     require(fcfs_end >= fcfs_start, "xcollection: invalid FCFS range")
     require(fcfs_start >= gtd_end, "xcollection: FCFS must start after GTD")
     require(pub_start >= fcfs_end, "xcollection: public must start after FCFS")
@@ -835,7 +874,7 @@ contract Xcollection {
   fn update_xpectrum_wallet(new_wallet: address): bool {
     only_initialized()
     require(caller == self.admin, "xcollection: only admin")
-    require(is_address(new_wallet) && new_wallet != 0, "xcollection: invalid address")
+    assert_address(new_wallet)
     self.xpectrum_wallet = new_wallet
     emit XpectrumWalletUpdated(new_wallet)
     return true
@@ -844,7 +883,7 @@ contract Xcollection {
   fn update_admin(new_admin: address): bool {
     only_initialized()
     require(caller == self.admin, "xcollection: only admin")
-    require(is_address(new_admin) && new_admin != 0, "xcollection: invalid address")
+    assert_address(new_admin)
     self.admin = new_admin
     return true
   }
@@ -855,7 +894,7 @@ contract Xcollection {
       caller == self.royalty_receiver || caller == self.owner,
       "xcollection: not authorized"
     )
-    require(is_address(new_receiver) && new_receiver != 0, "xcollection: invalid address")
+    assert_address(new_receiver)
     self.royalty_receiver = new_receiver
     return true
   }
@@ -863,7 +902,7 @@ contract Xcollection {
   fn transfer_ownership(new_owner: address): bool {
     only_initialized()
     require(caller == self.owner, "xcollection: not owner")
-    require(is_address(new_owner) && new_owner != 0, "xcollection: invalid address")
+    assert_address(new_owner)
     let old = self.owner
     self.owner = new_owner
     emit OwnershipTransferred(old, new_owner)
@@ -873,28 +912,32 @@ contract Xcollection {
   fn update_xlist(new_xlist: address): bool {
     only_initialized()
     require(caller == self.admin, "xcollection: only admin")
-    require(is_address(new_xlist) && new_xlist != 0, "xcollection: invalid address")
+    assert_address(new_xlist)
     self.xlist_addr = new_xlist
     return true
   }
 
   view fn owner_of(token_id: u128): address {
     require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     return self.tokens[token_id].owner
   }
 
   view fn creator_of(token_id: u128): address {
     require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     return self.royalty_receiver
   }
 
   view fn royalty_of(token_id: u128): u128 {
     require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     return self.royalty_bps
   }
 
   view fn token_uri(token_id: u128): string {
     require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     if self.revealed == 1 {
       let uri = self.base_uri
       uri = concat(uri, to_string(token_id))
@@ -910,11 +953,13 @@ contract Xcollection {
 
   view fn token_circle_count(token_id: u128): u128 {
     require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     return self.circle_resource_count
   }
 
   view fn token_circle_uri(token_id: u128, resource_id: u128): string {
     require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     require(resource_id < self.circle_resource_count, "xcollection: circle resource not found")
     if self.circle_resource_active[resource_id] == 0 {
       return ""
@@ -933,6 +978,7 @@ contract Xcollection {
 
   view fn collection_of(token_id: u128): string {
     require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     return self.name
   }
 
@@ -941,11 +987,28 @@ contract Xcollection {
   }
 
   view fn get_approved(token_id: u128): address {
+    require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     return self.approvals[token_id]
   }
 
   view fn total_supply(): u128 {
+    require(self.total_minted >= self.burned_count, "xcollection: supply underflow")
+    return self.total_minted - self.burned_count
+  }
+
+  view fn total_minted(): u128 {
     return self.total_minted
+  }
+
+  view fn burned(): u128 {
+    return self.burned_count
+  }
+
+  view fn is_burned(token_id: u128): u128 {
+    require(token_id < self.total_minted, "xcollection: token not found")
+    if self.tokens[token_id].owner == 0 { return 1 }
+    return 0
   }
 
   view fn collection_name(): string {
@@ -957,9 +1020,10 @@ contract Xcollection {
   }
 
   view fn is_approved_or_owner(token_id: u128, addr: address): u128 {
-    require(addr != 0, "xcollection: zero address")
+    assert_address(addr)
     require(token_id < self.total_minted, "xcollection: token not found")
     let current_owner = self.tokens[token_id].owner
+    require(current_owner != 0, "xcollection: token burned")
     if addr == current_owner { return 1 }
     if self.approvals[token_id] == addr { return 1 }
     if self.operator_approvals[current_owner][addr] == 1 { return 1 }
@@ -978,20 +1042,20 @@ contract Xcollection {
     return self.reserve
   }
 
-  view fn is_genesis_id_used(genesis_id: u128): u128 {
-    return self.used_genesis_ids[genesis_id]
+  view fn is_xpectra_id_used(xpectra_id: u128): u128 {
+    return self.used_xpectra_ids[xpectra_id]
   }
 
-  view fn has_claimed_genesis(wallet: address): u128 {
-    return self.genesis_claimed[wallet]
+  view fn has_claimed_xholder(wallet: address): u128 {
+    return self.xholder_claimed[wallet]
   }
 
-  view fn get_genesis_status(): string {
-    let out = to_string(self.genesis_minted_count)
+  view fn get_xholder_status(): string {
+    let out = to_string(self.xholder_minted_count)
     out = concat(out, "|")
     out = concat(out, to_string(self.injection_cap))
     out = concat(out, "|")
-    out = concat(out, to_string(self.genesis_contract))
+    out = concat(out, to_string(self.xpectra_contract))
     out = concat(out, "|")
     out = concat(out, to_string(self.injection_swept))
     return out
@@ -999,6 +1063,7 @@ contract Xcollection {
 
   view fn get_token_info(token_id: u128): string {
     require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     let uri = self.unrevealed_uri
     if self.revealed == 1 {
       uri = concat(self.base_uri, to_string(token_id))
@@ -1022,6 +1087,7 @@ contract Xcollection {
 
   view fn get_token_circle_info(token_id: u128, resource_id: u128): string {
     require(token_id < self.total_minted, "xcollection: token not found")
+    require(self.tokens[token_id].owner != 0, "xcollection: token burned")
     require(resource_id < self.circle_resource_count, "xcollection: circle resource not found")
 
     let out = to_string(token_id)
@@ -1069,6 +1135,8 @@ contract Xcollection {
     out = concat(out, to_string(self.owner))
     out = concat(out, "|")
     out = concat(out, to_string(self.revealed))
+    out = concat(out, "|")
+    out = concat(out, to_string(self.burned_count))
     return out
   }
 
@@ -1111,7 +1179,7 @@ contract Xcollection {
     out = concat(out, "|")
     out = concat(out, to_string(self.injection_cap))
     out = concat(out, "|")
-    out = concat(out, to_string(self.genesis_minted_count))
+    out = concat(out, to_string(self.xholder_minted_count))
     return out
   }
 
