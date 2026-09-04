@@ -1,0 +1,690 @@
+{
+  "contract": "XNS1",
+  "version": "v4.0.0",
+  "generated": "2026-09-04",
+  "status": "reference implementation, verified, not deployed",
+  "source_file": "contracts/XNS1.aml",
+  "chain": "octra mainnet",
+  "size": 12172,
+  "certificate": {
+    "schema": "aml_bytecode_certificate_v1",
+    "compiler": "octra_aml",
+    "compiler_version": "1.0 Rehovot",
+    "verification_schema": "aml_safety_report_v1",
+    "source_mode": "single",
+    "source_hash": "f55d89cd5f33cd842262e656a082fe268a0fb8ee83f4241370577d72dea08107",
+    "bytecode_hash": "cabadd61c400dadd551c3506357b076cb2ef9f0dc1bd3c9b4f7e1b8308359626",
+    "verification_hash": "b2b94757749f10e261f70a99fdf4c90be7528e8a1390dcbcc52b298406f790ae"
+  },
+  "verification": {
+    "schema": "aml_safety_report_v1",
+    "engine": "aml_ast_verifier",
+    "proof_model": "formal/coq/aml_value_safety_model.v",
+    "proof_gate": "scripts/check_aml_formal.sh",
+    "program_name": "XNS1",
+    "verified": true,
+    "safety": "warning",
+    "errors": 0,
+    "warnings": 7,
+    "trace": [
+      {
+        "code": "signed_value_storage",
+        "title": "value-like storage must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_parameter",
+        "title": "value-moving public parameters must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_flow",
+        "title": "signed values must not flow into value-like storage writes",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_arithmetic_range_not_proven",
+        "title": "unsigned arithmetic writes must prove range safety",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "supply_invariant_unproven",
+        "title": "balance and total supply writes should preserve conservation",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_parameter_without_positive_guard",
+        "title": "unsigned value parameters should reject zero unless zero is meaningful",
+        "status": "warning",
+        "severity": "warning",
+        "findings": 7
+      },
+      {
+        "code": "unchecked_transfer_result",
+        "title": "native transfer result should be checked",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      }
+    ],
+    "function_summaries": [
+      {
+        "name": "only_owner",
+        "visibility": "private",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_log_mint",
+        "visibility": "private",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_log_transfer",
+        "visibility": "private",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "_log_burn",
+        "visibility": "private",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "mint",
+        "visibility": "public",
+        "direct_calls": [
+          "_log_mint",
+          "assert_address",
+          "only_owner"
+        ],
+        "direct_writes": [
+          "balances",
+          "next_id",
+          "token_creator",
+          "token_minted_epoch",
+          "token_owner",
+          "token_royalty_bps",
+          "token_uri_of"
+        ],
+        "transitive_writes": [
+          "balances",
+          "event_log",
+          "event_log_count",
+          "next_id",
+          "token_creator",
+          "token_minted_epoch",
+          "token_owner",
+          "token_royalty_bps",
+          "token_uri_of"
+        ],
+        "value_writes": [
+          "balances"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "burn",
+        "visibility": "public",
+        "direct_calls": [
+          "_log_burn"
+        ],
+        "direct_writes": [
+          "approvals",
+          "balances",
+          "burned_count",
+          "token_owner"
+        ],
+        "transitive_writes": [
+          "approvals",
+          "balances",
+          "burned_count",
+          "event_log",
+          "event_log_count",
+          "token_owner"
+        ],
+        "value_writes": [
+          "balances"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "transfer",
+        "visibility": "public",
+        "direct_calls": [
+          "_log_transfer",
+          "assert_address"
+        ],
+        "direct_writes": [
+          "approvals",
+          "balances",
+          "token_owner"
+        ],
+        "transitive_writes": [
+          "approvals",
+          "balances",
+          "event_log",
+          "event_log_count",
+          "token_owner"
+        ],
+        "value_writes": [
+          "balances"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "transfer_from",
+        "visibility": "public",
+        "direct_calls": [
+          "_log_transfer",
+          "assert_address"
+        ],
+        "direct_writes": [
+          "approvals",
+          "balances",
+          "token_owner"
+        ],
+        "transitive_writes": [
+          "approvals",
+          "balances",
+          "event_log",
+          "event_log_count",
+          "token_owner"
+        ],
+        "value_writes": [
+          "balances"
+        ],
+        "signed_params": []
+      },
+      {
+        "name": "approve",
+        "visibility": "public",
+        "direct_calls": [
+          "assert_address"
+        ],
+        "direct_writes": [
+          "approvals"
+        ],
+        "transitive_writes": [
+          "approvals"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "revoke_approval",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [
+          "approvals"
+        ],
+        "transitive_writes": [
+          "approvals"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_operator",
+        "visibility": "public",
+        "direct_calls": [
+          "assert_address"
+        ],
+        "direct_writes": [
+          "operator_approvals"
+        ],
+        "transitive_writes": [
+          "operator_approvals"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "transfer_ownership",
+        "visibility": "public",
+        "direct_calls": [
+          "assert_address",
+          "only_owner"
+        ],
+        "direct_writes": [
+          "owner"
+        ],
+        "transitive_writes": [
+          "owner"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_provenance_hash",
+        "visibility": "public",
+        "direct_calls": [
+          "len",
+          "only_owner"
+        ],
+        "direct_writes": [
+          "provenance_hash"
+        ],
+        "transitive_writes": [
+          "provenance_hash"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_provenance_hash",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "add_circle_resource",
+        "visibility": "public",
+        "direct_calls": [
+          "only_owner"
+        ],
+        "direct_writes": [
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_resource_count",
+          "circle_resource_uri"
+        ],
+        "transitive_writes": [
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_resource_count",
+          "circle_resource_uri"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "set_circle_resource",
+        "visibility": "public",
+        "direct_calls": [
+          "only_owner"
+        ],
+        "direct_writes": [
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_resource_uri"
+        ],
+        "transitive_writes": [
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_resource_uri"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "clear_circle_resource",
+        "visibility": "public",
+        "direct_calls": [
+          "only_owner"
+        ],
+        "direct_writes": [
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_resource_uri"
+        ],
+        "transitive_writes": [
+          "circle_resource_access",
+          "circle_resource_active",
+          "circle_resource_uri"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "owner_of",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "creator_of",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "royalty_of",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "token_uri",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "token_circle_count",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "token_circle_uri",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "collection_of",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "balance_of",
+        "visibility": "public",
+        "direct_calls": [
+          "assert_address"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_approved",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "total_supply",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "total_minted",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "burned",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "is_burned",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "symbol",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "is_approved_or_owner",
+        "visibility": "public",
+        "direct_calls": [
+          "assert_address"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_token_info",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_token_circle_info",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_contract_info",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_event_log",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "constructor",
+        "visibility": "public",
+        "direct_calls": [
+          "len"
+        ],
+        "direct_writes": [
+          "name",
+          "owner",
+          "symbol"
+        ],
+        "transitive_writes": [
+          "name",
+          "owner",
+          "symbol"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      }
+    ],
+    "invariants": [
+      {
+        "code": "supply_balance_conservation",
+        "kind": "derived",
+        "status": "not_applicable",
+        "expression": null,
+        "message": "program does not expose both balance and supply storage",
+        "fields": [
+          "balances"
+        ],
+        "functions": []
+      }
+    ],
+    "findings": [
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XNS1",
+        "function_name": "mint",
+        "state_field": null,
+        "parameter": "royalty_bps"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XNS1",
+        "function_name": "burn",
+        "state_field": null,
+        "parameter": "token_id"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XNS1",
+        "function_name": "transfer",
+        "state_field": null,
+        "parameter": "token_id"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XNS1",
+        "function_name": "transfer_from",
+        "state_field": null,
+        "parameter": "token_id"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XNS1",
+        "function_name": "get_approved",
+        "state_field": null,
+        "parameter": "token_id"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XNS1",
+        "function_name": "is_burned",
+        "state_field": null,
+        "parameter": "token_id"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XNS1",
+        "function_name": "is_approved_or_owner",
+        "state_field": null,
+        "parameter": "token_id"
+      }
+    ]
+  },
+  "abi": "{\"functions\":[{\"name\":\"mint\",\"inputs\":[\"address\",\"address\",\"string\",\"bytes\"],\"output\":\"bytes\",\"view\":false,\"payable\":false},{\"name\":\"burn\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"transfer\",\"inputs\":[\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"transfer_from\",\"inputs\":[\"address\",\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"approve\",\"inputs\":[\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"revoke_approval\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"set_operator\",\"inputs\":[\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"transfer_ownership\",\"inputs\":[\"address\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"set_provenance_hash\",\"inputs\":[\"string\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"get_provenance_hash\",\"inputs\":[],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"add_circle_resource\",\"inputs\":[\"bytes\",\"string\",\"string\"],\"output\":\"bytes\",\"view\":false,\"payable\":false},{\"name\":\"set_circle_resource\",\"inputs\":[\"bytes\",\"bytes\",\"string\",\"string\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"clear_circle_resource\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"owner_of\",\"inputs\":[\"bytes\"],\"output\":\"address\",\"view\":true,\"payable\":false},{\"name\":\"creator_of\",\"inputs\":[\"bytes\"],\"output\":\"address\",\"view\":true,\"payable\":false},{\"name\":\"royalty_of\",\"inputs\":[\"bytes\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"token_uri\",\"inputs\":[\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"token_circle_count\",\"inputs\":[\"bytes\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"token_circle_uri\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"collection_of\",\"inputs\":[\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"balance_of\",\"inputs\":[\"address\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_approved\",\"inputs\":[\"bytes\"],\"output\":\"address\",\"view\":true,\"payable\":false},{\"name\":\"total_supply\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"total_minted\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"burned\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"is_burned\",\"inputs\":[\"bytes\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"symbol\",\"inputs\":[],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"is_approved_or_owner\",\"inputs\":[\"bytes\",\"address\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_token_info\",\"inputs\":[\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_token_circle_info\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_contract_info\",\"inputs\":[],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_event_log\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false}],\"events\":[{\"name\":\"Minted\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"creator\",\"type\":\"address\"}]},{\"name\":\"Transferred\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"from\",\"type\":\"address\"},{\"name\":\"to\",\"type\":\"address\"}]},{\"name\":\"Burned\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"total_supply\",\"type\":\"bytes\"}]},{\"name\":\"Approved\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"approved\",\"type\":\"address\"}]},{\"name\":\"ApprovalRevoked\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"}]},{\"name\":\"OperatorSet\",\"fields\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"operator\",\"type\":\"address\"},{\"name\":\"approved\",\"type\":\"bytes\"}]},{\"name\":\"OwnershipTransferred\",\"fields\":[{\"name\":\"old_owner\",\"type\":\"address\"},{\"name\":\"new_owner\",\"type\":\"address\"}]},{\"name\":\"ProvenanceHashSet\",\"fields\":[{\"name\":\"hash\",\"type\":\"string\"}]},{\"name\":\"CircleResourceSet\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"resource_id\",\"type\":\"bytes\"},{\"name\":\"uri\",\"type\":\"string\"},{\"name\":\"access\",\"type\":\"string\"}]},{\"name\":\"CircleResourceCleared\",\"fields\":[{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"resource_id\",\"type\":\"bytes\"}]}]}",
+  "builds": {
+    "mainnet": {
+      "bytecode_hash": "cabadd61c400dadd551c3506357b076cb2ef9f0dc1bd3c9b4f7e1b8308359626",
+      "size": 12172
+    },
+    "devnet": {
+      "bytecode_hash": "5336acb6527dd0f2363d23510bebf5cdd4854f9aed912c83bf4305daf4025031",
+      "size": 12412
+    }
+  }
+}

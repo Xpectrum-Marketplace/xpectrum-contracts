@@ -30,7 +30,7 @@ RPC `https://octra.network/rpc`, explorer [octrascan.io](https://octrascan.io). 
 
 XNS-1 is the token interface every NFT on Xpectrum implements, and the one a third party implements to trade on Xmarket without asking anyone.
 
-There is no standalone reference implementation in this repo yet. The two complete, deployed implementations are here instead: `Xcollection.aml` and `XpectrumGenesis.aml`. Read either for the full surface.
+`contracts/XNS1.aml` is the reference implementation, **v4.0.0**. It is formally verified on both chains and is **not deployed**: it is there to be read and copied, not called. The working implementations in production are `Xcollection.aml` and `XpectrumGenesis.aml`, which are also here.
 
 Xmarket relies on five entry points. These are the ones that must match exactly:
 
@@ -44,11 +44,13 @@ Xmarket relies on five entry points. These are the ones that must match exactly:
 
 Two things bite here.
 
-`is_approved_or_owner` must return **`u128`**, not `bool`. Xmarket settles on `require(approved == 1)`, which a `bool` return can never satisfy, so a contract that returns `bool` compiles, verifies, and is then silently untradeable.
+`is_approved_or_owner` must return **`u128`**, not `bool`. Xmarket settles on `require(approved == 1)`, which a `bool` return can never satisfy, so a contract that returns `bool` compiles, verifies, and is then silently untradeable. Earlier revisions of this contract returned `bool`; v4.0.0 is the one to copy.
 
 It also takes `token_id` first and the address second. Reversing them fails at settlement rather than at the call.
 
-The rest of the interface: mint, transfer, approve and the operator pattern; a one-way provenance hash; per-token and contract-level circle resource pointers; and `get_token_info`, `get_contract_info`, `get_token_circle_info` for indexers and wallets.
+The rest of the interface: mint, transfer, approve and the operator pattern; `burn`, holder-only, with `total_minted` monotonic and live supply derived as `total_minted - burned`; a one-way provenance hash; per-token and contract-level circle resource pointers; and `get_token_info`, `get_contract_info`, `get_token_circle_info` for indexers and wallets.
+
+An implementation may extend `get_contract_info` with its own trailing columns, and both production contracts here do. Read from the left.
 
 ### Xcollection: the drop contract
 
@@ -124,6 +126,7 @@ One exception you will notice reading the source: `Xmarket.aml` declares `contra
 
 | Contract | Version | Verified | Errors | Warnings | bytecode_hash |
 |---|---|---|---|---|---|
+| XNS1 (reference, not deployed) | v4.0.0 | true | 0 | 7 | `cabadd61…` mainnet / `5336acb6…` devnet |
 | Xcollection | v4.0.0 | true | 0 | 7 | `e097aa4c…` |
 | Xmarket | v3.2.0 | true | 0 | 0 | `943cbd42…` |
 | XuperFactory | v2.0.0 | true | 0 | 1 | `4fa02e39…` |
@@ -171,8 +174,9 @@ Amounts are in micro-OCT (`ou`). 1 OCT = 1,000,000 ou.
 
 Pipe-delimited views:
 
-- `get_token_info(id)` >> `id | owner | creator | name | royalty_bps | minted_epoch | uri`
-- `get_token_circle_info(id, resource_id)` >> `token_id | resource_id | uri | access | active | version`
+- `XNS1.get_contract_info()` >> `name | symbol | total_supply | owner | total_minted | burned | events`
+- `XNS1.get_token_info(id)` >> `id | owner | creator | name | royalty_bps | minted_epoch | uri`
+- `XNS1.get_token_circle_info(id, resource_id)` >> `token_id | resource_id | uri | access | active | version`
 - `Xcollection.get_contract_info()` >> `name | symbol | total_minted | max_supply | royalty_bps | owner | revealed | burned`
 - `Xcollection.get_phase_info()` >> `gtd_price | gtd_start | gtd_end | gtd_cap | gtd_minted | gtd_wallet_cap | fcfs_price | fcfs_start | fcfs_end | fcfs_cap | fcfs_minted | fcfs_wallet_cap | pub_price | pub_start | pub_end | pub_cap | pub_minted | pub_wallet_cap | injection_cap | xholder_minted_count`
 - `Xcollection.get_xholder_status()` >> `xholder_minted_count | injection_cap | xpectra_contract | injection_swept`

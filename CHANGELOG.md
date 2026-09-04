@@ -31,6 +31,37 @@ Standards (XNS-1, the Metadata Standard) version separately from the contracts t
 | Xincinerator | v1.0.0 | `octGn3QwHTcGjo6Vjz5G9y8Z9hZDsYoA7gbksRqdJoaeg6q` |
 | XincineratorLog | v1.0.0 | `oct4u3PmynG2jDJADUF1iVTwPA8oxNy2LQTYNKueGdPN3zh` |
 
+`XNS1.aml` is the reference implementation and is deliberately not deployed.
+
+---
+
+## XNS1 v4.0.0
+
+**Reference implementation. Verified, not deployed.** Breaking against rev 3.
+
+Rev 3 is withdrawn and is not in this repo. Anyone who copied it should move to v4.0.0.
+
+### What changes for implementers
+- `is_approved_or_owner` returns `u128` (`1` or `0`). **Rev 3 returned `bool`, which `Xmarket.require(approved == 1)` can never satisfy, so a literal rev-3 implementation was untradeable on Xmarket.** This is the reason to move.
+- `total_supply()` is live supply. `total_minted()` is the id count. Rev 3 had one counter.
+- New: `burn(token_id)` (holder only), `total_minted()`, `burned()`, `is_burned(token_id)`.
+- `get_contract_info()` gained `total_minted | burned | events`.
+- Mint emits `Transferred(id, 0, to)`; rev 3 emitted `(id, caller, to)`. Burn emits `Transferred(id, owner, 0)`.
+- `event_log` and `get_event_log` added, so an XNS-1 contract is visible to an indexer at all.
+- `bool` removed from state and from numerically compared parameters.
+- `get_token_circle_info` version is now 2: the `active` column is `1`/`0`.
+
+### Hashes
+
+Source `f55d89cd…`, identical on both chains. Bytecode differs per chain, which is expected:
+
+| Chain | bytecode_hash | size |
+|---|---|---|
+| mainnet | `cabadd61…` | 12172 |
+| devnet | `5336acb6…` | 12412 |
+
+Verified true, 0 errors, 7 warnings on both.
+
 ---
 
 ## XuperFactory v2.0.0
