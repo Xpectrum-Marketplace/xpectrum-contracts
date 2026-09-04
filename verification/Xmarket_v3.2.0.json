@@ -1,4 +1,20 @@
 {
+  "contract": "Xmarket",
+  "version": "v3.2.0",
+  "generated": "2026-09-04",
+  "chain": "octra mainnet",
+  "source_file": "contracts/Xmarket.aml",
+  "size": 21440,
+  "certificate": {
+    "schema": "aml_bytecode_certificate_v1",
+    "compiler": "octra_aml",
+    "compiler_version": "1.0 Rehovot",
+    "verification_schema": "aml_safety_report_v1",
+    "source_mode": "single",
+    "source_hash": "c54231a199ea11236f5a78d0a949928c705e213e974fae7c16d5c0f7b65b3db8",
+    "bytecode_hash": "943cbd42f67c2d704c1ec7b1f01facc1a59024a4ce79db7afc8686baeec60e66",
+    "verification_hash": "adb32db008ab6ff90df397a56c9beb56919c0c38739bced0933586c1f52e7014"
+  },
   "verification": {
     "schema": "aml_safety_report_v1",
     "engine": "aml_ast_verifier",
@@ -802,17 +818,5 @@
     ],
     "findings": []
   },
-  "certificate": {
-    "schema": "aml_bytecode_certificate_v1",
-    "compiler": "octra_aml",
-    "compiler_version": "1.0 Rehovot",
-    "verification_schema": "aml_safety_report_v1",
-    "source_mode": "single",
-    "source_hash": "9f4a05cbc3be9e465cd51826815caae3563e619ec49b66a0464559de0c2c7a74",
-    "bytecode_hash": "943cbd42f67c2d704c1ec7b1f01facc1a59024a4ce79db7afc8686baeec60e66",
-    "verification_hash": "adb32db008ab6ff90df397a56c9beb56919c0c38739bced0933586c1f52e7014"
-  },
-  "size": 21440,
-  "instructions": 4543,
-  "version": "1.0 Rehovot"
+  "abi": "{\"functions\":[{\"name\":\"list_nft\",\"inputs\":[\"address\",\"bytes\",\"bytes\"],\"output\":\"bytes\",\"view\":false,\"payable\":false},{\"name\":\"cancel_listing\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"buy_nft\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"make_offer\",\"inputs\":[\"address\",\"bytes\",\"bytes\"],\"output\":\"bytes\",\"view\":false,\"payable\":false},{\"name\":\"make_collection_offer\",\"inputs\":[\"address\",\"bytes\",\"bytes\"],\"output\":\"bytes\",\"view\":false,\"payable\":false},{\"name\":\"cancel_offer\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"accept_offer\",\"inputs\":[\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"accept_collection_offer\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"claim_proceeds\",\"inputs\":[],\"output\":\"bytes\",\"view\":false,\"payable\":false},{\"name\":\"withdraw_fees\",\"inputs\":[],\"output\":\"bytes\",\"view\":false,\"payable\":false},{\"name\":\"transfer_ownership\",\"inputs\":[\"address\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"set_standard_mode\",\"inputs\":[\"address\",\"bytes\"],\"output\":\"bool\",\"view\":false,\"payable\":false},{\"name\":\"get_listing\",\"inputs\":[\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_offer\",\"inputs\":[\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_offer_quantity\",\"inputs\":[\"bytes\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_standard_mode\",\"inputs\":[\"address\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_token_listing\",\"inputs\":[\"address\",\"bytes\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_pending_proceeds\",\"inputs\":[\"address\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_listing_count\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_offer_count\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_active_count\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_total_volume\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_fee_balance\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_reserve\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_offer_reserve\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_owner\",\"inputs\":[],\"output\":\"address\",\"view\":true,\"payable\":false},{\"name\":\"get_market_info\",\"inputs\":[],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_listings_page\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_listings_for_collection\",\"inputs\":[\"address\",\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false},{\"name\":\"get_event_log\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false}],\"events\":[]}"
 }

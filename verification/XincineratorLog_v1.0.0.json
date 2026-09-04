@@ -1,0 +1,222 @@
+{
+  "contract": "XincineratorLog",
+  "version": "v1.0.0",
+  "generated": "2026-09-04",
+  "chain": "octra mainnet",
+  "source_file": "contracts/XincineratorLog.aml",
+  "size": 2681,
+  "certificate": {
+    "schema": "aml_bytecode_certificate_v1",
+    "compiler": "octra_aml",
+    "compiler_version": "1.0 Rehovot",
+    "verification_schema": "aml_safety_report_v1",
+    "source_mode": "single",
+    "source_hash": "60b34c89f9099c8eee6465be672e7cfb09e90abdec86589cc2f2aa1156c8ea43",
+    "bytecode_hash": "7b12f20878cf72d277b3b97eac3004111bbf3519e8ea3afdf7b075b956aa7286",
+    "verification_hash": "39075018b6cfd59e231fc8dcf60c0bdf79dd31770ef10fcbdbb159226f1d5477"
+  },
+  "verification": {
+    "schema": "aml_safety_report_v1",
+    "engine": "aml_ast_verifier",
+    "proof_model": "formal/coq/aml_value_safety_model.v",
+    "proof_gate": "scripts/check_aml_formal.sh",
+    "program_name": "XincineratorLog",
+    "verified": true,
+    "safety": "warning",
+    "errors": 0,
+    "warnings": 2,
+    "trace": [
+      {
+        "code": "signed_value_storage",
+        "title": "value-like storage must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_parameter",
+        "title": "value-moving public parameters must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_flow",
+        "title": "signed values must not flow into value-like storage writes",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_arithmetic_range_not_proven",
+        "title": "unsigned arithmetic writes must prove range safety",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "supply_invariant_unproven",
+        "title": "balance and total supply writes should preserve conservation",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_parameter_without_positive_guard",
+        "title": "unsigned value parameters should reject zero unless zero is meaningful",
+        "status": "warning",
+        "severity": "warning",
+        "findings": 2
+      },
+      {
+        "code": "unchecked_transfer_result",
+        "title": "native transfer result should be checked",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      }
+    ],
+    "function_summaries": [
+      {
+        "name": "_log_burn",
+        "visibility": "private",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "transitive_writes": [
+          "event_log",
+          "event_log_count"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "burn_range",
+        "visibility": "public",
+        "direct_calls": [
+          "_log_burn",
+          "call",
+          "is_address"
+        ],
+        "direct_writes": [
+          "coll_burned",
+          "is_burned",
+          "total_burned"
+        ],
+        "transitive_writes": [
+          "coll_burned",
+          "event_log",
+          "event_log_count",
+          "is_burned",
+          "total_burned"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_incinerator",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_total_burned",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_burned_count",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "token_is_burned",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_event_log",
+        "visibility": "public",
+        "direct_calls": [
+          "concat",
+          "to_string"
+        ],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "constructor",
+        "visibility": "public",
+        "direct_calls": [
+          "is_address"
+        ],
+        "direct_writes": [
+          "event_log_count",
+          "incinerator",
+          "total_burned"
+        ],
+        "transitive_writes": [
+          "event_log_count",
+          "incinerator",
+          "total_burned"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      }
+    ],
+    "invariants": [
+      {
+        "code": "supply_balance_conservation",
+        "kind": "derived",
+        "status": "not_applicable",
+        "expression": null,
+        "message": "program does not expose both balance and supply storage",
+        "fields": [],
+        "functions": []
+      }
+    ],
+    "findings": [
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XincineratorLog",
+        "function_name": "burn_range",
+        "state_field": null,
+        "parameter": "start_id"
+      },
+      {
+        "severity": "warning",
+        "code": "unsigned_parameter_without_positive_guard",
+        "message": "unsigned value parameter allows zero unless guarded",
+        "program_name": "XincineratorLog",
+        "function_name": "token_is_burned",
+        "state_field": null,
+        "parameter": "token_id"
+      }
+    ]
+  },
+  "abi": "{\"functions\":[{\"name\":\"burn_range\",\"inputs\":[\"address\",\"bytes\",\"bytes\"],\"output\":\"bytes\",\"view\":false,\"payable\":false},{\"name\":\"get_incinerator\",\"inputs\":[],\"output\":\"address\",\"view\":true,\"payable\":false},{\"name\":\"get_total_burned\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_burned_count\",\"inputs\":[\"address\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"token_is_burned\",\"inputs\":[\"address\",\"bytes\"],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_event_log\",\"inputs\":[\"bytes\",\"bytes\"],\"output\":\"string\",\"view\":true,\"payable\":false}],\"events\":[{\"name\":\"Burned\",\"fields\":[{\"name\":\"collection\",\"type\":\"address\"},{\"name\":\"token_id\",\"type\":\"bytes\"},{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"burn_epoch\",\"type\":\"bytes\"}]}]}"
+}

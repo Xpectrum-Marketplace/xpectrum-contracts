@@ -1,0 +1,126 @@
+{
+  "contract": "Xincinerator",
+  "version": "v1.0.0",
+  "generated": "2026-09-04",
+  "chain": "octra mainnet",
+  "source_file": "contracts/Xincinerator.aml",
+  "size": 285,
+  "certificate": {
+    "schema": "aml_bytecode_certificate_v1",
+    "compiler": "octra_aml",
+    "compiler_version": "1.0 Rehovot",
+    "verification_schema": "aml_safety_report_v1",
+    "source_mode": "single",
+    "source_hash": "0639891ca377e66915ffa855344734e7668e2499c726889f63824743e9912d1a",
+    "bytecode_hash": "de1ce6aa8673bf6c670bdc6bf1f6a0de60dfb8b6db0ebad61e9683ddecea1977",
+    "verification_hash": "a0162880fd94efded951cb5723950158f47c527ec0d9e18f8f964c32c0b5de68"
+  },
+  "verification": {
+    "schema": "aml_safety_report_v1",
+    "engine": "aml_ast_verifier",
+    "proof_model": "formal/coq/aml_value_safety_model.v",
+    "proof_gate": "scripts/check_aml_formal.sh",
+    "program_name": "Xincinerator",
+    "verified": true,
+    "safety": "safe",
+    "errors": 0,
+    "warnings": 0,
+    "trace": [
+      {
+        "code": "signed_value_storage",
+        "title": "value-like storage must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_parameter",
+        "title": "value-moving public parameters must not use signed int",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "signed_value_flow",
+        "title": "signed values must not flow into value-like storage writes",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_arithmetic_range_not_proven",
+        "title": "unsigned arithmetic writes must prove range safety",
+        "status": "pass",
+        "severity": "error",
+        "findings": 0
+      },
+      {
+        "code": "supply_invariant_unproven",
+        "title": "balance and total supply writes should preserve conservation",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      },
+      {
+        "code": "unsigned_parameter_without_positive_guard",
+        "title": "unsigned value parameters should reject zero unless zero is meaningful",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      },
+      {
+        "code": "unchecked_transfer_result",
+        "title": "native transfer result should be checked",
+        "status": "pass",
+        "severity": "warning",
+        "findings": 0
+      }
+    ],
+    "function_summaries": [
+      {
+        "name": "get_version",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "get_deployed_epoch",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [],
+        "transitive_writes": [],
+        "value_writes": [],
+        "signed_params": []
+      },
+      {
+        "name": "constructor",
+        "visibility": "public",
+        "direct_calls": [],
+        "direct_writes": [
+          "deployed_epoch"
+        ],
+        "transitive_writes": [
+          "deployed_epoch"
+        ],
+        "value_writes": [],
+        "signed_params": []
+      }
+    ],
+    "invariants": [
+      {
+        "code": "supply_balance_conservation",
+        "kind": "derived",
+        "status": "not_applicable",
+        "expression": null,
+        "message": "program does not expose both balance and supply storage",
+        "fields": [],
+        "functions": []
+      }
+    ],
+    "findings": []
+  },
+  "abi": "{\"functions\":[{\"name\":\"get_version\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false},{\"name\":\"get_deployed_epoch\",\"inputs\":[],\"output\":\"bytes\",\"view\":true,\"payable\":false}],\"events\":[]}"
+}

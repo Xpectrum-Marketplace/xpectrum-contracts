@@ -15,7 +15,7 @@ Versions follow [CHANGELOG.md](./CHANGELOG.md), which says what changed and whet
 | Xmarket | v3.2.0 | `octGoeTjaF8MiKTP5ad5FJfWMCZmmEdnrfxTow6UUVmBj6h` |
 | XuperFactory | v2.0.0 | `octHgTcvueQE5LRb2PYLJqa5T9ypUgBuyY5XyxRstoSdBVN` |
 | Xcollection | v4.0.0 | deployed per collection by XuperFactory |
-| Xlist | v2.0.0 | deployed per collection by XuperFactory |
+| Xlist | v2.0.0 | deployed per collection by XuperFactory, from embedded bytecode |
 | XpectrumGenesis (Xpectra) | v1.0.1 | `octC4PvHrT8U1vDsZ5ejEBj6UgW2fRoLfohFBSCePdstZfQ` |
 | Xincinerator | v1.0.0 | `octGn3QwHTcGjo6Vjz5G9y8Z9hZDsYoA7gbksRqdJoaeg6q` |
 | XincineratorLog | v1.0.0 | `oct4u3PmynG2jDJADUF1iVTwPA8oxNy2LQTYNKueGdPN3zh` |
@@ -78,21 +78,22 @@ Works with any XNS-1 contract, and with contracts shaped like ERC-721 through th
 - no self-buy, no accepting your own offer
 - swap-and-pop index with stale-entry zeroing
 
-### XlistFactory and Xlist: allowlists
+### Xlist: allowlists
 
-`create_xlist(collection_addr)` deploys and initialises an Xlist in one transaction.
+One Xlist is deployed per collection and bound to it at creation. XuperFactory deploys it from embedded bytecode as part of the same transaction, so there is no separate factory call.
 
-- one Xlist per collection, bound at deploy time
 - phase 0 is guaranteed, phase 1 is first come
 - `add_batch` / `remove_batch`, 20 addresses per call
 - `is_whitelisted` answers only the collection it is registered to
+
+Its source is not in this repo yet. It is deployed as embedded bytecode inside `XuperFactory.aml`, which is published here, so the bytecode is public even though the source is not. That gap is being closed.
 
 ### XuperFactory: permissionless launcher
 
 Deploys a linked Xcollection and Xlist in a single transaction. No owner gate on `create_collection`: any wallet may launch.
 
 - embeds the verified Xcollection bytecode
-- deploys the Xlist through XlistFactory and links both
+- deploys the Xlist from embedded bytecode and links both, in the same transaction
 - the platform wallet is held in factory state, never taken from the caller
 - `create_collection` requires a launch fee, currently 1 OCT, readable with `get_launch_fee()`. The fee accrues in the contract and is withdrawn separately, so the launch path contains no external transfer that could revert a deploy.
 - `get_collection(idx)` and `get_count()` enumerate
@@ -113,16 +114,26 @@ No `xholder_mint`, no reserve, and no `burn`: its supply is fixed at what was mi
 
 ---
 
+## Naming
+
+A source file is named for its contract, with no version in the filename. The version lives in [CHANGELOG.md](./CHANGELOG.md) and in the certificate name, and nowhere else.
+
+One exception you will notice reading the source: `Xmarket.aml` declares `contract Xmarket_v3`, while the contract is at v3.2.0. The contract identifier is compiled into the bytecode, so renaming it would mean redeploying a live marketplace to fix a cosmetic mismatch. It stays as it is. Nothing else carries a version in its identifier, and nothing new will.
+
 ## Formal verification
 
-| Contract | Verified | Errors | Warnings |
-|---|---|---|---|
-| Xcollection v4.0.0 | true | 0 | 7 |
-| Xmarket v3.2.0 | true | 0 | 0 |
-| XuperFactory v2.0.0 | true | 0 | 1 |
-| XpectrumGenesis v1.0.1 | true | 0 | 4 |
+| Contract | Version | Verified | Errors | Warnings | bytecode_hash |
+|---|---|---|---|---|---|
+| Xcollection | v4.0.0 | true | 0 | 7 | `e097aa4c…` |
+| Xmarket | v3.2.0 | true | 0 | 0 | `943cbd42…` |
+| XuperFactory | v2.0.0 | true | 0 | 1 | `4fa02e39…` |
+| XpectrumGenesis | v1.0.1 | true | 0 | 4 | `9e17d6c9…` |
+| Xincinerator | v1.0.0 | true | 0 | 0 | `de1ce6aa…` |
+| XincineratorLog | v1.0.0 | true | 0 | 2 | `7b12f208…` |
 
-Warnings are all `unsigned_parameter_without_positive_guard`, on token ids, royalty, and the launch fee. They are documented false positives: zero is a valid token id because ids are 0-indexed, `royalty_bps = 0` means royalty-free, and a launch fee of 0 is deliberately allowed so launching can be made free.
+Every warning is `unsigned_parameter_without_positive_guard`, on token ids, royalty, and the launch fee. They are documented false positives: zero is a valid token id because ids are 0-indexed, `royalty_bps = 0` means royalty-free, and a launch fee of 0 is deliberately allowed so launching can be made free.
+
+Every certificate in `verification/` was generated on 2026-09-04 by compiling the source file beside it, so each one certifies that exact file and nothing else. `scripts/verify.sh` recompiles everything and checks it, and is what we run before pushing.
 
 Each report in `verification/` carries the `bytecode_hash`, `source_hash` and `verification_hash` for that build. Compare a fresh compile against `bytecode_hash`, not `source_hash`: comments do not change bytecode, so `source_hash` moves on a comment edit while `bytecode_hash` does not.
 
