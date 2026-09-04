@@ -46,8 +46,8 @@ contract Xmarket_v3 {
     // remaining units (single-token offers: 1)
     offer_quantity:      map[u128]u128
 
-    // 1 = universal-check collection (owner_of + get_approved instead of
-    // is_approved_or_owner). Owner-set at onboarding; default 0 = XNS-1 mode.
+    // 1 = universal-check collection, read with owner_of + get_approved instead of is_approved_or_owner.
+    // Owner-set at onboarding. Default 0 is XNS-1 mode.
     standard_mode: map[address]u128
 
     // (listing_id + 1) sentinel; 0 = no active listing
@@ -124,12 +124,10 @@ contract Xmarket_v3 {
     self.pending_proceeds[recipient] = np
   }
 
-  // Ownership/approval gate. XNS-1 collections (default) answer the rich
-  // is_approved_or_owner (owner OR per-token approval OR operator). Flagged
-  // standard-mode collections lack that fn, and calling a missing fn reverts
-  // the whole tx, so they are checked via the two universal ERC-721-shaped
-  // reads instead (owner OR per-token approval; operators unsupported).
-  // Reverts unless addr may move token_id; returns 1 otherwise.
+  // Ownership and approval gate.
+  // XNS-1 collections answer is_approved_or_owner, which covers owner, per-token approval and operator.
+  // Standard-mode collections do not have that function, and calling a missing one reverts the whole tx, so they are read with owner_of and get_approved instead. That lane has no operator support.
+  // Reverts unless addr may move token_id, and returns 1 otherwise.
   private fn _check_approved_or_owner(nft_contract: address, token_id: u128, addr: address): u128 {
     if self.standard_mode[nft_contract] == 1 {
       let current_owner = call(nft_contract, "owner_of", token_id)
@@ -143,11 +141,10 @@ contract Xmarket_v3 {
     return 1
   }
 
-  // Strict ownership gate for offer accepts: proceeds are credited to the caller,
-  // so the caller must BE the current owner (an approved/operator caller would be
-  // paid for someone else's token if the NFT contract's transfer_from were lax
-  // about the from param). owner_of is universal, so this
-  // needs no standard-mode branch. Reverts unless addr owns token_id.
+  // Strict ownership gate for offer accepts.
+  // Proceeds are credited to the caller, so the caller has to be the current owner: an approved or operator caller would otherwise be paid for someone else's token if the collection's transfer_from were lax about the from param.
+  // owner_of is universal, so this needs no standard-mode branch.
+  // Reverts unless addr owns token_id.
   private fn _check_is_owner(nft_contract: address, token_id: u128, addr: address): u128 {
     let current_owner = call(nft_contract, "owner_of", token_id)
     require(addr == current_owner, "xmarket: not token owner")
@@ -368,8 +365,7 @@ contract Xmarket_v3 {
     require(caller == self.offer_offerer[offer_id], "xmarket: not offerer")
 
     // refund the remaining escrow: unit price * units not yet accepted.
-    // remaining only ever decreases, so the product is bounded by the
-    // originally escrowed value and cannot overflow.
+    // remaining only ever decreases, so the product is bounded by the originally escrowed value and cannot overflow.
     let remaining: u128 = self.offer_quantity[offer_id]
     require(remaining > 0, "xmarket: offer exhausted")
     let amount: u128 = self.offer_amount[offer_id] * remaining
@@ -403,8 +399,8 @@ contract Xmarket_v3 {
     require(self.offer_reserve >= price, "xmarket: offer reserve underflow")
     self.offer_reserve -= price
 
-    // The sold token may sit in an active listing, so close it and log the cancel
-    // (status 0 = closed-without-listing-sale; the trade itself is the osale below).
+    // The sold token may sit in an active listing, so close it and log the cancel.
+    // Status 0 is closed without a listing sale, because the trade itself is the osale below.
     let sentinel = self.contract_token_listing[nft_contract][token_id]
     if sentinel != 0 {
       let lid: u128 = sentinel - 1
@@ -518,9 +514,9 @@ contract Xmarket_v3 {
     return true
   }
 
-  // Flip a collection into (1) or out of (0) standard mode. Done once at
-  // onboarding for foreign ERC-721-shaped contracts (owner_of + get_approved
-  // must exist); XNS-1 collections stay at the default 0.
+  // Flip a collection into (1) or out of (0) standard mode.
+  // Done once at onboarding for foreign ERC-721-shaped contracts, which must expose owner_of and get_approved.
+  // XNS-1 collections stay at the default 0.
   fn set_standard_mode(nft_contract: address, mode: u128): bool {
     only_owner()
     require(is_address(nft_contract) && nft_contract != 0, "xmarket: invalid contract")

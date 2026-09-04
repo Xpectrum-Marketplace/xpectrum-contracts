@@ -1,17 +1,11 @@
-// XpectrumGenesis (Beta Genesis) >> root genesis collection (3-phase mint, no parent injection)
-// rev (2026-06-11): migrated to the formally verified AML dialect.
-//   u128 + checked-arith helpers + guarded subtraction; phase-epoch underflow guards;
-//   native transfer() checked. ROOT genesis: no genesis_mint/injection (init takes no genesis param).
-//   Holding a Beta Genesis token grants GTD access on future Xcollection drops.
+// XpectrumGenesis: the root collection, deployed on mainnet as Xpectra.
+// 3-phase mint (GTD, FCFS, public), reveal, holder enumeration, pull-based proceeds, circle resources.
+// Token ids are 0-indexed, so the first mint is id 0.
+// No xholder mint and no reserve of its own: this is the collection a reserve is granted against, not one that receives it.
+// No burn, so supply is fixed at what was minted and total_supply never moves.
 //
-// rev (2026-07-21): checked mint-cost mul, get_approved bounds, dropped dead guards.
-//
-// FORMAL VERIFICATION (octra_compileAml, "1.0 Rehovot", 2026-07-21):
-//   verified: True   safety: "warning"   errors: 0   warnings: 4
-//   bytecode_hash:     9e17d6c97c9c5906117b9e3e4d7917d701cafc1c4adbd325d7a57342df353884
-//   verification_hash: 0a5bfb14a58b31db0f79d5638aa1f6c94a6f228474622454a39916eaf150d557
-//   (source_hash in XpectrumGenesis_verification.json)
-//
+// get_contract_info >> name | symbol | total_supply | max_supply | royalty_bps | owner | revealed
+
 contract XpectrumGenesis {
 
   struct TokenInfo {
