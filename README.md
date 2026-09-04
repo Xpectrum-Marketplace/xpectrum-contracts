@@ -26,17 +26,29 @@ RPC `https://octra.network/rpc`, explorer [octrascan.io](https://octrascan.io). 
 
 ## Contracts
 
-### XNS1: the Xpectrum NFT standard
+### XNS-1: the Xpectrum NFT standard
 
-Base non-fungible token contract. Defines the interface every NFT on Xpectrum conforms to, and the one a third party implements to trade on Xmarket without asking anyone.
+XNS-1 is the token interface every NFT on Xpectrum implements, and the one a third party implements to trade on Xmarket without asking anyone.
 
-- mint, transfer, approve, operator pattern
-- royalty as a first-class per-token field, capped at 10%
-- one-way provenance hash, owner-set
-- per-token and contract-level circle resource pointers
-- `get_token_info`, `get_contract_info`, `get_token_circle_info` for indexers and wallets
+There is no standalone reference implementation in this repo yet. The two complete, deployed implementations are here instead: `Xcollection.aml` and `XpectrumGenesis.aml`. Read either for the full surface.
 
-`contracts/XNS1.aml` is v3.0.0, which is what conforming contracts implement today. v4.0.0 is drafted in [`draft/`](./draft/) and is not deployed: it adds burn, splits the supply counters, and changes `is_approved_or_owner` to return `u128`. Those are breaking, so it will not ship without a published standard revision first.
+Xmarket relies on five entry points. These are the ones that must match exactly:
+
+| Entry point | Signature | Returns |
+|---|---|---|
+| `owner_of` | `(token_id: u128)` | `address` |
+| `is_approved_or_owner` | `(token_id: u128, addr: address)` | `u128`, `1` or `0` |
+| `creator_of` | `(token_id: u128)` | `address` |
+| `royalty_of` | `(token_id: u128)` | `u128`, basis points, max 1000 |
+| `transfer_from` | `(from: address, to: address, token_id: u128)` | moves the token |
+
+Two things bite here.
+
+`is_approved_or_owner` must return **`u128`**, not `bool`. Xmarket settles on `require(approved == 1)`, which a `bool` return can never satisfy, so a contract that returns `bool` compiles, verifies, and is then silently untradeable.
+
+It also takes `token_id` first and the address second. Reversing them fails at settlement rather than at the call.
+
+The rest of the interface: mint, transfer, approve and the operator pattern; a one-way provenance hash; per-token and contract-level circle resource pointers; and `get_token_info`, `get_contract_info`, `get_token_circle_info` for indexers and wallets.
 
 ### Xcollection: the drop contract
 
@@ -105,7 +117,6 @@ No `xholder_mint`, no reserve, and no `burn`: its supply is fixed at what was mi
 
 | Contract | Verified | Errors | Warnings |
 |---|---|---|---|
-| XNS1 v3.0.0 | true | 0 | 5 |
 | Xcollection v4.0.0 | true | 0 | 7 |
 | Xmarket v3.2.0 | true | 0 | 0 |
 | XuperFactory v2.0.0 | true | 0 | 1 |
@@ -149,9 +160,8 @@ Amounts are in micro-OCT (`ou`). 1 OCT = 1,000,000 ou.
 
 Pipe-delimited views:
 
-- `XNS1.get_token_info(id)` >> `id | owner | creator | name | royalty_bps | minted_epoch | uri`
-- `XNS1.get_token_circle_info(id, resource_id)` >> `token_id | resource_id | uri | access | active | version`
-- `XNS1.get_contract_info()` >> `name | symbol | total_supply | owner`
+- `get_token_info(id)` >> `id | owner | creator | name | royalty_bps | minted_epoch | uri`
+- `get_token_circle_info(id, resource_id)` >> `token_id | resource_id | uri | access | active | version`
 - `Xcollection.get_contract_info()` >> `name | symbol | total_minted | max_supply | royalty_bps | owner | revealed | burned`
 - `Xcollection.get_phase_info()` >> `gtd_price | gtd_start | gtd_end | gtd_cap | gtd_minted | gtd_wallet_cap | fcfs_price | fcfs_start | fcfs_end | fcfs_cap | fcfs_minted | fcfs_wallet_cap | pub_price | pub_start | pub_end | pub_cap | pub_minted | pub_wallet_cap | injection_cap | xholder_minted_count`
 - `Xcollection.get_xholder_status()` >> `xholder_minted_count | injection_cap | xpectra_contract | injection_swept`
@@ -180,9 +190,7 @@ Xcollection stores collection-level templates: each resource resolves as `base_u
 
 ## Building on this
 
-Implement XNS-1 and your contract trades on Xmarket with no permission from us. Xmarket only relies on `owner_of`, `is_approved_or_owner`, `transfer_from`, `creator_of` and `royalty_of`.
-
-`is_approved_or_owner` takes `token_id` first and the address second. Reversing them fails silently at settlement.
+Implement the five entry points above and your contract trades on Xmarket with no permission from us. Match the types exactly: a `bool` return on `is_approved_or_owner` is the one mistake that costs a redeploy, because the contract will verify cleanly and then refuse every sale.
 
 Full integration guide: [docs.xpectrum.xyz](https://docs.xpectrum.xyz/developers/integrate).
 
