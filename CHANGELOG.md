@@ -1,10 +1,10 @@
 # Changelog
 
-Every contract version, newest first, and whether you have to do anything about it.
+Every contract version, newest first, with the caller impact of each.
 
 This file is mirrored at [docs.xpectrum.xyz/changelog](https://docs.xpectrum.xyz/changelog). Update both together.
 
-Contracts are immutable once deployed, so a change means a new deployment with a new version. This page records every version, newest first, and says plainly whether you have to do anything.
+Contracts are immutable once deployed, so any change requires a new deployment under a new version. This file records every version and states the impact on existing callers.
 
 Source and verification certificates: [xpectrum-xyz/xpectrum-contracts](https://github.com/xpectrum-xyz/xpectrum-contracts).
 
@@ -14,9 +14,9 @@ Source and verification certificates: [xpectrum-xyz/xpectrum-contracts](https://
 
 | | Meaning |
 |---|---|
-| **MAJOR** | The interface broke. Your code must change. Renames, signature or return-shape changes, a field that keeps its name and changes meaning, a call that used to succeed and now reverts. |
-| **MINOR** | The interface held, the behaviour moved. New views or events, or a tuned constant such as a reserve ceiling or a phase minimum. Nothing to change, but the numbers you plan against may differ. |
-| **PATCH** | Nothing observable changed. Internal hardening only. |
+| **MAJOR** | The interface changed and calling code must be updated. Renames, signature or return-shape changes, a field that retains its name and changes meaning, or a call that previously succeeded and now reverts. |
+| **MINOR** | The interface is unchanged and the observable behaviour differs. New views or events, or a revised constant such as a reserve ceiling or a phase minimum. No code change is required, but values used for planning may differ. |
+| **PATCH** | No observable change. Internal hardening only. |
 
 Standards (XNS-1, the Metadata Standard) version separately from the contracts that implement them, as `vMAJOR.MINOR`.
 
@@ -31,7 +31,7 @@ Standards (XNS-1, the Metadata Standard) version separately from the contracts t
 | Xincinerator | v1.0.0 | `octGn3QwHTcGjo6Vjz5G9y8Z9hZDsYoA7gbksRqdJoaeg6q` |
 | XincineratorLog | v1.0.0 | `oct4u3PmynG2jDJADUF1iVTwPA8oxNy2LQTYNKueGdPN3zh` |
 
-`XNS1.aml` is the reference implementation and is deliberately not deployed.
+`XNS1.aml` is the reference implementation and is not deployed.
 
 ---
 
@@ -39,10 +39,10 @@ Standards (XNS-1, the Metadata Standard) version separately from the contracts t
 
 **Reference implementation. Verified, not deployed.** Breaking against rev 3.
 
-Rev 3 is withdrawn and is not in this repo. Anyone who copied it should move to v4.0.0.
+Rev 3 is withdrawn and is not included in this repository. Existing implementations based on it should migrate to v4.0.0.
 
 ### What changes for implementers
-- `is_approved_or_owner` returns `u128` (`1` or `0`). **Rev 3 returned `bool`, which `Xmarket.require(approved == 1)` can never satisfy, so a literal rev-3 implementation was untradeable on Xmarket.** This is the reason to move.
+- `is_approved_or_owner` returns `u128` (`1` or `0`). **Rev 3 returned `bool`, which `Xmarket.require(approved == 1)` cannot satisfy, so a literal rev-3 implementation is untradeable on Xmarket.** This is the reason for the migration.
 - `total_supply()` is live supply. `total_minted()` is the id count. Rev 3 had one counter.
 - New: `burn(token_id)` (holder only), `total_minted()`, `burned()`, `is_burned(token_id)`.
 - `get_contract_info()` gained `total_minted | burned | events`.
@@ -100,15 +100,15 @@ Folds in an earlier build from 2026-08-12 that was never deployed.
 - `genesis_mint(genesis_id)` is now `xholder_mint(xpectra_id)`.
 - `get_genesis_status`, `has_claimed_genesis` and `is_genesis_id_used` are now `get_xholder_status`, `has_claimed_xholder` and `is_xpectra_id_used`.
 - `genesis_contract`, `genesis_minted_count`, `genesis_claimed` and `used_genesis_ids` are now `xpectra_contract`, `xholder_minted_count`, `xholder_claimed` and `used_xpectra_ids`.
-- `event GenesisMint` is now `event XholderMint`. **Indexers must update their filter or they will silently stop seeing these mints.**
-- `total_supply()` now returns live supply. `total_minted()` is the id count. If you read `total_supply` expecting the number ever minted, you now get a different number.
+- `event GenesisMint` is now `event XholderMint`. **Indexers must update their filter, otherwise these mints will no longer be observed.**
+- `total_supply()` now returns live supply and `total_minted()` returns the id count. Callers reading `total_supply` as the total ever minted will receive a different value.
 - `get_contract_info()` gained a trailing `burned` column.
 - New: `burn(token_id)`, `total_minted()`, `burned()`, `is_burned(token_id)`.
 - `get_provenance_hash` is now a `view fn`. Reading it no longer costs a transaction.
 
 **What changes for creators**
-- The Xholder reserve ceiling is **111**, previously 222. On a collection above 555 supply this is a real difference in how much of your supply is reserved.
-- The minimum phase length is **240 epochs**, about 40 minutes, previously 360. The old figure assumed exactly ten seconds an epoch, which the chain has never held; 240 is set from the fastest rate measured over 160 days.
+- The Xholder reserve ceiling is **111**, previously 222. For collections above 555 supply this materially changes the reserved allocation.
+- The minimum phase length is **240 epochs**, approximately 40 minutes, previously 360. The earlier value assumed exactly ten seconds per epoch, a rate the chain has not sustained. 240 is derived from the fastest rate measured over 160 days.
 - Burning is available, holder-only. It never lowers `max_supply` and never reopens a mint slot.
 
 **Hashes**
@@ -170,11 +170,11 @@ Hardening for parity with Xcollection: checked mint-cost multiplication, a bound
 
 **What changes for callers**
 - `make_collection_offer(nft, duration, quantity)` takes a quantity. `get_offer` now returns 9 fields, and the `coffer` event 7.
-- Accepting an offer emits an `osale` event, not `sale`. Previously an offer accept emitted `sale` carrying an offer id in the listing-id slot, which corrupted indexer listing tables. **If you index sales, handle `osale`.**
+- Accepting an offer emits an `osale` event rather than `sale`. Previously an offer accept emitted `sale` carrying an offer id in the listing-id field, which corrupted indexer listing tables. **Consumers indexing sales must handle `osale`.**
 - A `cancel` event is now logged when an accept auto-closes a listing, with status 0 rather than 2.
 - New `cancel_offer` event.
 - New `standard_mode` compatibility lane: owner-flagged collections are checked via `owner_of` plus `get_approved`, which lets ERC-721-shaped contracts trade.
-- You can no longer accept your own offer.
+- Accepting one's own offer is now rejected.
 
 **Hashes:** bytecode_hash `943cbd42…`
 
@@ -182,4 +182,4 @@ Hardening for parity with Xcollection: checked mint-cost multiplication, a bound
 
 ## Earlier
 
-Versions before this point ran on devnet only and are recorded in the repository. The public history starts at mainnet launch on 2026-07-20.
+Versions preceding this point were deployed to devnet only. The public history begins at mainnet launch on 2026-07-20.
